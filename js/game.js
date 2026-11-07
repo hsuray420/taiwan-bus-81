@@ -11,15 +11,15 @@
  */
 
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import { KinglongBus } from './bus.js';
-import { TaichungCity, STATIONS } from './city.js';
-import { BusAudioEngine } from './audio.js';
+import { KinglongBus } from './bus.js?v=d25635b';
+import { TaichungCity, STATIONS } from './city.js?v=d25635b';
+import { BusAudioEngine } from './audio.js?v=d25635b';
 import {
   applyPassengerEvent,
   createPassengerEventPlan,
   shouldAutoOpenFrontDoor,
   shouldPlayTurnWarning
-} from './passenger-events.mjs';
+} from './passenger-events.mjs?v=d25635b';
 
 export class Game {
   constructor() {

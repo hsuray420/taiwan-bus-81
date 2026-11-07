@@ -10,7 +10,7 @@
  */
 
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import { classifyStop } from './route-stop.mjs';
+import { classifyStop } from './route-stop.mjs?v=d25635b';
 
 const ROUTE_STOP_NAMES = [
   '統聯轉運站(站內)', '福安里(臺灣大道)', '朝馬2(臺灣大道)', '黎明環河路口',

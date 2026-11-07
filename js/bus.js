@@ -23,7 +23,7 @@
  */
 
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import { KL6112U1_SPEC } from './vehicle-spec.mjs';
+import { KL6112U1_SPEC } from './vehicle-spec.mjs?v=d25635b';
 
 export class KinglongBus {
   constructor(scene) {
