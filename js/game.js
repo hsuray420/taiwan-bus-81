@@ -35,11 +35,11 @@ export class Game {
 
     // Scene & Renderer
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x82b4dc); // 台灣晴朗天空藍
-    this.scene.fog = new THREE.FogExp2(0x95c0e4, 0.0016);
+    this.scene.background = new THREE.Color(0xb2d6f0);
+    this.scene.fog = new THREE.FogExp2(0xc8ddef, 0.0022);
 
     this.camera = new THREE.PerspectiveCamera(
-      58,
+      72,
       window.innerWidth / window.innerHeight,
       0.1,
       1600
@@ -55,11 +55,12 @@ export class Game {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.15;
     this.container.appendChild(this.renderer.domElement);
 
-    // Daylight lighting
+    // Daylight lighting & Atmospheric Sky
     this.setupLighting();
+    this.setupAtmosphericSky();
 
     // Spawn City and Bus
     this.city = new TaichungCity(this.scene);
@@ -118,25 +119,80 @@ export class Game {
     requestAnimationFrame(this.animate);
   }
 
+  setupAtmosphericSky() {
+    // 建立大氣天空球 (Atmospheric Sky Dome with Sun Corona)
+    const skyGeo = new THREE.SphereGeometry(750, 32, 24);
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    // 天頂深藍 -> 晴空藍 -> 暖白大氣光暈 -> 地平線薄霧
+    grad.addColorStop(0.0, '#15528c');
+    grad.addColorStop(0.35, '#2f82c4');
+    grad.addColorStop(0.68, '#82bfe8');
+    grad.addColorStop(0.86, '#cce5f7');
+    grad.addColorStop(0.94, '#fff5e6');
+    grad.addColorStop(1.0, '#b8ccd9');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 128, 512);
+
+    const skyTex = new THREE.CanvasTexture(canvas);
+    const skyMat = new THREE.MeshBasicMaterial({
+      map: skyTex,
+      side: THREE.BackSide,
+      fog: false
+    });
+    this.skyDome = new THREE.Mesh(skyGeo, skyMat);
+    this.scene.add(this.skyDome);
+
+    // 太陽光暈球 (Sun Disc with Soft Corona)
+    const sunDisc = new THREE.Mesh(
+      new THREE.SphereGeometry(16, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xfffae6, fog: false })
+    );
+    sunDisc.position.set(160, 240, -420);
+    this.scene.add(sunDisc);
+
+    const sunGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(110, 110),
+      new THREE.MeshBasicMaterial({
+        color: 0xffefb3,
+        transparent: true,
+        opacity: 0.45,
+        fog: false,
+        blending: THREE.AdditiveBlending
+      })
+    );
+    sunGlow.position.copy(sunDisc.position);
+    sunGlow.lookAt(0, 0, 0);
+    this.scene.add(sunGlow);
+  }
+
   setupLighting() {
-    // 太陽直射光 (Sunlight with soft shadow)
-    const sun = new THREE.DirectionalLight(0xfff8ee, 1.6);
-    sun.position.set(60, 120, 60);
+    // 太陽直射光 (暖金白直射陽光 + 柔和陰影)
+    const sun = new THREE.DirectionalLight(0xfff6e8, 1.85);
+    sun.position.set(120, 160, -80);
     sun.castShadow = true;
     sun.shadow.mapSize.width = 2048;
     sun.shadow.mapSize.height = 2048;
     sun.shadow.camera.near = 10;
-    sun.shadow.camera.far = 400;
+    sun.shadow.camera.far = 420;
     sun.shadow.camera.left = -60;
     sun.shadow.camera.right = 60;
     sun.shadow.camera.top = 60;
     sun.shadow.camera.bottom = -60;
-    sun.shadow.bias = -0.0005;
+    sun.shadow.bias = -0.0004;
     this.scene.add(sun);
+    this.sunLight = sun;
 
-    // 半球環境光 (Sky Blue + Warm Ground Bounce)
-    const hemiLight = new THREE.HemisphereLight(0xdbe9f6, 0x6e7b85, 0.85);
+    // 半球環境光 (天空湛藍 + 地面暖灰漫反射)
+    const hemiLight = new THREE.HemisphereLight(0xd8ecfa, 0x5a6872, 0.95);
     this.scene.add(hemiLight);
+
+    // 環境光補光
+    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+    this.scene.add(ambient);
   }
 
   setupInputs() {
@@ -156,10 +212,15 @@ export class Game {
       if (k === 'f') this.changeGear(-1);
       if (k === 'n') this.setNeutral();
       if (k === 'v') this.toggleReferenceRecording();
-      if (k === 'h') this.audio.playHorn();
+      if (k === 'b') this.audio.playHorn();
+      if (k === 'h' || k === '?') this.toggleGuideModal();
       if (k === 'p' || e.code === 'Space') this.toggleParkingBrake();
       if (k === 'q') this.toggleTurnSignal('left');
       if (k === 'x' || k === 'e') this.toggleTurnSignal('right');
+      if (e.code === 'Tab') {
+        e.preventDefault();
+        this.toggleHud();
+      }
     });
 
     window.addEventListener('keyup', (e) => {
@@ -200,6 +261,26 @@ export class Game {
     document.getElementById('btn-cam-switch')?.addEventListener('click', () => this.cycleCamera());
     document.getElementById('btn-handbrake')?.addEventListener('click', () => this.toggleParkingBrake());
     document.getElementById('btn-reference-audio')?.addEventListener('click', () => this.toggleReferenceRecording());
+    document.getElementById('btn-toggle-guide')?.addEventListener('click', () => this.toggleGuideModal());
+    document.getElementById('btn-close-modal')?.addEventListener('click', () => this.toggleGuideModal(false));
+    document.getElementById('controls-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'controls-modal') this.toggleGuideModal(false);
+    });
+    document.getElementById('btn-toggle-hud')?.addEventListener('click', () => this.toggleHud());
+  }
+
+  toggleGuideModal(forceState = null) {
+    const modal = document.getElementById('controls-modal');
+    if (!modal) return;
+    const shouldOpen = forceState !== null ? forceState : modal.classList.contains('hidden');
+    modal.classList.toggle('hidden', !shouldOpen);
+  }
+
+  toggleHud() {
+    this.hudMinimized = !this.hudMinimized;
+    const bottomHud = document.getElementById('bottom-hud');
+    if (bottomHud) bottomHud.classList.toggle('minimized', this.hudMinimized);
+    this.showFloatingNotice(this.hudMinimized ? '👁️ 已進入純淨駕駛視野 (再按 Tab 還原)' : '📋 已顯示儀表輔助面板');
   }
 
   // ==========================================
@@ -613,34 +694,48 @@ export class Game {
   // ==========================================
   updateCamera() {
     if (this.cameraMode === 0) {
-      // 模式 0：台灣標準左駕駕駛室視角 (坐在左前方 x = -0.75, y = 1.62, z = 4.35)
-      // 朝向前方擋風玻璃，方向盤在眼前下方，左後視鏡在左，右照地鏡與投幣箱在右前方
-      const driverEye = new THREE.Vector3(-0.75, 1.62, 4.35);
+      // 模式 0：台灣標準左駕駕駛室視角
+      // 司機眼高 y = 1.50, z = 4.38, x = -0.75
+      // 稍帶俯角朝向前方 (y = 1.12, z = 12.0)，廣角 72 度
+      // 自然看清前方道路、方向盤銀飾條、雙圓數位儀表 (100% 48°C / 時速 / 檔位)、左後視鏡與右 CCTV
+      const driverEye = new THREE.Vector3(-0.75, 1.50, 4.38);
       driverEye.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.busHeading);
 
-      const lookAhead = new THREE.Vector3(-0.75, 1.55, 24.0);
+      const lookAhead = new THREE.Vector3(-0.75, 1.12, 12.0);
       lookAhead.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.busHeading);
 
       this.camera.position.copy(this.busPos).add(driverEye);
       this.camera.lookAt(this.busPos.clone().add(lookAhead));
+      if (this.camera.fov !== 72) {
+        this.camera.fov = 72;
+        this.camera.updateProjectionMatrix();
+      }
     } else if (this.cameraMode === 1) {
-      // 模式 1：車外第三人稱追蹤視角 (稍帶右偏角，完整欣賞綠色金屬漆車身與輪拱)
+      // 模式 1：車外第三人稱追蹤視角 (稍帶右偏角，完整欣賞車身與輪拱)
       const dist = this.cameraDistance;
       const angle = this.busHeading;
       const camOffset = new THREE.Vector3(
-        -Math.sin(angle) * dist + 1.6,
+        -Math.sin(angle) * dist + 1.8,
         this.cameraHeight,
         -Math.cos(angle) * dist
       );
 
       this.camera.position.copy(this.busPos).add(camOffset);
-      this.camera.lookAt(this.busPos.x, this.busPos.y + 1.7, this.busPos.z);
+      this.camera.lookAt(this.busPos.x, this.busPos.y + 1.6, this.busPos.z);
+      if (this.camera.fov !== 62) {
+        this.camera.fov = 62;
+        this.camera.updateProjectionMatrix();
+      }
     } else if (this.cameraMode === 2) {
       // 模式 2：車身右側 45 度全身特寫視角 (成運電 EAL-5195 科技塗裝與車門特寫)
-      const sideOffset = new THREE.Vector3(5.8, 2.0, 1.2);
+      const sideOffset = new THREE.Vector3(6.5, 2.0, 1.0);
       sideOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.busHeading);
       this.camera.position.copy(this.busPos).add(sideOffset);
-      this.camera.lookAt(this.busPos.x, this.busPos.y + 1.3, this.busPos.z);
+      this.camera.lookAt(this.busPos.x, this.busPos.y + 1.4, this.busPos.z);
+      if (this.camera.fov !== 55) {
+        this.camera.fov = 55;
+        this.camera.updateProjectionMatrix();
+      }
     }
   }
 
@@ -702,6 +797,15 @@ export class Game {
 
     this.updatePhysics(delta);
     this.updateCamera();
+
+    // 天空球與太陽光動態跟隨車輛移動
+    if (this.skyDome) {
+      this.skyDome.position.copy(this.busPos);
+    }
+    if (this.sunLight) {
+      this.sunLight.position.set(this.busPos.x + 120, 160, this.busPos.z - 80);
+      this.sunLight.target.position.copy(this.busPos);
+    }
 
     this.renderer.render(this.scene, this.camera);
   }

@@ -1,5 +1,5 @@
-/* Taiwan Bus 81 - Simulation HUD Stylesheet */
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Noto+Sans+TC:wght@400;700;900&display=swap');
+/* Taiwan Bus 81 - Modern Simulator HUD Stylesheet */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
 
 * {
   box-sizing: border-box;
@@ -13,7 +13,7 @@ body, html {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #000;
+  background-color: #0b1016;
   font-family: 'Noto Sans TC', sans-serif;
   color: #fff;
 }
@@ -28,292 +28,412 @@ body, html {
 }
 
 /* ==========================================
-   頂部路線資訊看板 (Top Route Header)
+   頂部現代整合型導航列 (Top Unified Header - 零重疊)
    ========================================== */
-#top-hud {
+#game-header {
   position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 12px;
+  left: 14px;
+  right: 14px;
   z-index: 10;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  background: rgba(16, 20, 26, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(14px);
-  padding: 10px 24px;
-  border-radius: 40px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  gap: 12px;
+  background: rgba(14, 18, 24, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 8px 16px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .route-badge {
-  background: linear-gradient(135deg, #11853b, #0a5624);
+  background: linear-gradient(135deg, #16a34a, #0e6b30);
   color: #fff;
   font-family: 'Chakra Petch', sans-serif;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
-  padding: 4px 16px;
+  padding: 4px 12px;
   border-radius: 8px;
   letter-spacing: 1px;
-  box-shadow: 0 2px 12px rgba(17, 133, 59, 0.5);
+  box-shadow: 0 2px 10px rgba(22, 163, 74, 0.4);
 }
 
-.route-text {
+.route-details {
   display: flex;
   flex-direction: column;
 }
 
 .route-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  color: #f5f5f5;
+  color: #f8fafc;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.route-title span {
+.ev-tag {
   color: #00e676;
-  font-size: 12px;
-  font-weight: 400;
+  font-size: 11px;
+  font-weight: 500;
   background: rgba(0, 230, 118, 0.15);
-  border: 1px solid rgba(0, 230, 118, 0.3);
-  padding: 2px 8px;
+  border: 1px solid rgba(0, 230, 118, 0.35);
+  padding: 2px 6px;
   border-radius: 4px;
 }
 
 .route-stations {
-  font-size: 12px;
-  color: #90a4ae;
-  margin-top: 2px;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 1px;
 }
 
-/* ==========================================
-   右上方狀態欄 (下車鈴警示、氣壓手煞車、乘客數)
-   ========================================== */
-#status-hud {
-  position: absolute;
-  top: 16px;
-  right: 20px;
-  z-index: 10;
+/* 中央到站動態橫幅 */
+#station-prompt-container {
+  flex: 1;
   display: flex;
-  gap: 10px;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 10px;
 }
 
-.hud-pill {
-  background: rgba(18, 22, 28, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 8px 16px;
+#station-prompt {
+  display: none;
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.92), rgba(17, 24, 39, 0.95));
+  border: 1px solid #60a5fa;
+  padding: 6px 18px;
   border-radius: 30px;
-  font-size: 13px;
-  color: #cfd8dc;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.3s ease;
-}
-
-.hud-pill.active {
-  background: rgba(211, 47, 47, 0.95);
-  border-color: #ff5252;
+  font-size: 14px;
   color: #fff;
-  font-weight: 700;
-  box-shadow: 0 0 18px rgba(255, 23, 68, 0.8);
+  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.4);
+  white-space: nowrap;
+  animation: pulse-glow 1.8s infinite alternate;
 }
 
-.bell-indicator {
+.prompt-hint {
+  font-size: 11px;
+  color: #bfdbfe;
+  margin-left: 8px;
+}
+
+@keyframes pulse-glow {
+  from { border-color: #60a5fa; box-shadow: 0 2px 10px rgba(37, 99, 235, 0.3); }
+  to { border-color: #93c5fd; box-shadow: 0 4px 22px rgba(59, 130, 246, 0.65); }
+}
+
+/* 右側即時狀態欄 */
+.header-right {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(30, 30, 30, 0.8);
-  border: 1px solid #555;
-  padding: 8px 16px;
-  border-radius: 30px;
-  font-size: 14px;
-  color: #777;
-  transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
-.bell-indicator.active {
-  background: rgba(211, 47, 47, 0.95);
-  border-color: #ff5252;
-  color: #fff;
-  font-weight: 700;
-  box-shadow: 0 0 20px rgba(255, 23, 68, 0.8);
-  animation: pulse-bell 0.8s infinite alternate;
-}
-
-@keyframes pulse-bell {
-  from { transform: scale(1); }
-  to { transform: scale(1.06); }
-}
-
-.passenger-pill {
-  background: rgba(18, 22, 28, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 8px 16px;
-  border-radius: 30px;
-  font-size: 13px;
-  color: #cfd8dc;
+.hud-pill {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #cbd5e1;
   display: flex;
   align-items: center;
   gap: 6px;
+  transition: all 0.25s ease;
+  white-space: nowrap;
 }
 
-/* ==========================================
-   中央到站提示 (Station Prompt)
-   ========================================== */
-#station-prompt {
-  position: absolute;
-  top: 90px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  display: none;
-  background: linear-gradient(135deg, rgba(21, 101, 192, 0.95), rgba(13, 71, 161, 0.98));
-  border: 2px solid #64b5f6;
-  padding: 12px 28px;
-  border-radius: 14px;
-  text-align: center;
-  font-size: 18px;
+.hud-pill.active {
+  background: rgba(220, 38, 38, 0.92);
+  border-color: #f87171;
   color: #fff;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
-  animation: float-prompt 2s ease-in-out infinite alternate;
+  font-weight: 700;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.7);
 }
 
-@keyframes float-prompt {
-  from { transform: translate(-50%, 0); }
-  to { transform: translate(-50%, -6px); }
+.bell-indicator.active {
+  animation: bell-bounce 0.6s infinite alternate;
+}
+
+@keyframes bell-bounce {
+  from { transform: scale(1); }
+  to { transform: scale(1.05); }
+}
+
+.hud-action-btn {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f1f5f9;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hud-action-btn:hover {
+  background: rgba(51, 65, 85, 0.95);
+  border-color: #00e676;
+  color: #00e676;
+  transform: translateY(-1px);
+}
+
+.hud-action-btn:active {
+  transform: translateY(0);
 }
 
 /* ==========================================
-   底部駕駛座儀表板 (Cockpit Cluster)
+   底部駕駛座快捷操作條 (Bottom HUD)
    ========================================== */
 #bottom-hud {
   position: absolute;
-  bottom: 20px;
-  left: 20px;
+  bottom: 16px;
+  left: 16px;
   z-index: 10;
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: flex-end;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#bottom-hud.minimized {
+  opacity: 0.25;
+  transform: translateY(60px);
+}
+
+#bottom-hud:hover {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
 }
 
 .cluster-card {
-  background: rgba(15, 18, 24, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(14px);
-  border-radius: 16px;
-  padding: 16px 20px;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
-/* 數位時速表 (Digital Speedometer) */
 .speed-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 110px;
+  min-width: 80px;
 }
 
 .speed-val {
-  font-family: 'Chakra Petch', monospace;
-  font-size: 48px;
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 32px;
   font-weight: 700;
   color: #00e676;
-  text-shadow: 0 0 15px rgba(0, 230, 118, 0.5);
   line-height: 1;
 }
 
 .speed-unit {
-  font-size: 12px;
-  color: #78909c;
-  letter-spacing: 1px;
-  margin-top: 4px;
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
+  font-weight: 700;
 }
 
-/* 車門與操作快捷按鈕 (Controls) */
 .controls-box {
   display: flex;
   gap: 8px;
 }
 
 .hud-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #eceff1;
-  padding: 10px 14px;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  padding: 6px 12px;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  min-width: 68px;
   transition: all 0.2s ease;
 }
 
 .hud-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: #00e676;
-  transform: translateY(-2px);
+  background: rgba(51, 65, 85, 0.95);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
-.hud-btn:active {
-  transform: translateY(1px);
-}
-
-.hud-btn.primary {
-  background: rgba(0, 230, 118, 0.15);
-  border-color: #00e676;
-  color: #00e676;
+.hud-btn.active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #34d399;
 }
 
 .hud-btn.danger {
-  background: rgba(255, 23, 68, 0.15);
-  border-color: #ff1744;
-  color: #ff5252;
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #f87171;
 }
 
 .hud-btn kbd {
   font-size: 10px;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 1px 6px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 1px 5px;
   border-radius: 4px;
-  color: #aaa;
+  color: #94a3b8;
+  font-family: monospace;
 }
 
 /* ==========================================
-   右下角操作指南 (Controls Guide)
+   操作指南彈窗 (Controls Modal - 不再永久遮擋前方視線)
    ========================================== */
-#controls-guide {
+.modal-backdrop {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
-  z-index: 10;
-  background: rgba(15, 18, 24, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 14px 20px;
-  border-radius: 14px;
-  font-size: 12px;
-  color: #b0bec5;
-  line-height: 1.8;
-  backdrop-filter: blur(10px);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.25s ease;
+  pointer-events: auto;
 }
 
-#controls-guide strong {
-  color: #fff;
+.modal-backdrop.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.modal-panel {
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 680px;
+  padding: 24px 28px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+  transform: translateY(0);
+  transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+.modal-backdrop.hidden .modal-panel {
+  transform: translateY(20px);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.modal-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 26px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.btn-close:hover {
+  color: #f87171;
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.guide-col h4 {
+  font-size: 14px;
+  color: #00e676;
+  margin-bottom: 10px;
+}
+
+.guide-col p {
   font-size: 13px;
+  color: #cbd5e1;
+  line-height: 1.8;
+  margin-bottom: 6px;
 }
 
-#controls-guide kbd {
-  background: #263238;
-  color: #eceff1;
+.guide-col kbd {
+  background: #1e293b;
+  border: 1px solid #475569;
+  color: #f1f5f9;
   padding: 2px 6px;
   border-radius: 4px;
   font-family: monospace;
-  border: 1px solid #455a64;
+  font-size: 11px;
+}
+
+.modal-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: right;
+  color: #64748b;
+  font-size: 12px;
+}
+
+/* ==========================================
+   動態 Toast 提示 (Card tap notice, announcements)
+   ========================================== */
+#toast-notice {
+  position: absolute;
+  top: 86px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-15px);
+  z-index: 50;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid #10b981;
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+#toast-notice.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 /* ==========================================
@@ -329,8 +449,8 @@ body, html {
 }
 
 .touch-btn {
-  width: 64px;
-  height: 64px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   border: 2px solid rgba(255, 255, 255, 0.4);
@@ -343,40 +463,28 @@ body, html {
 }
 
 .touch-btn:active {
-  background: #00e676;
+  background: #10b981;
+}
+
+@media (max-width: 900px) {
+  .route-stations {
+    display: none;
+  }
+  .prompt-hint {
+    display: none;
+  }
 }
 
 @media (max-width: 768px) {
-  #controls-guide {
-    display: none;
+  #game-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .guide-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
   #mobile-controls {
     display: flex;
   }
-}
-
-/* ==========================================
-   動態 Toast 提示 (Card tap notice, announcements)
-   ========================================== */
-#toast-notice {
-  position: absolute;
-  top: 150px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-20px);
-  z-index: 30;
-  background: rgba(15, 20, 28, 0.94);
-  border: 1px solid #00e676;
-  color: #fff;
-  padding: 10px 24px;
-  border-radius: 24px;
-  font-size: 15px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-}
-
-#toast-notice.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
 }

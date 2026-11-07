@@ -13,99 +13,117 @@
   <!-- 3D 渲染畫布容器 -->
   <div id="canvas-container"></div>
 
-  <!-- 頂部 81路 路線抬頭資訊 -->
-  <div id="top-hud">
-    <div class="route-badge">81</div>
-    <div class="route-text">
-      <div class="route-title">
-        台中市公車 81路 <span>成運電能 EV BUS (EAL-5195) 左駕</span>
+  <!-- 頂部現代大巴整合導航列 (零重疊設計) -->
+  <header id="game-header">
+    <div class="header-left">
+      <div class="route-badge">81</div>
+      <div class="route-details">
+        <div class="route-title">
+          台中市公車 81路 <span class="ev-tag">⚡ 成運電能 EAL-5195 左駕</span>
+        </div>
+        <div class="route-stations" id="route-info">
+          統聯轉運站 ⇄ 臺中車站 ⇄ 太原六號橋
+        </div>
       </div>
-      <div class="route-stations" id="route-info">
-        起點：統聯轉運站(站內) ⇄ 終點：太原六號橋(太原路)
+    </div>
+
+    <!-- 中央停靠站動態橫幅 (靠站時平滑浮現) -->
+    <div id="station-prompt-container">
+      <div id="station-prompt">
+        🚏 即將抵達：<strong id="current-station-name">統聯轉運站</strong>
+        <span class="prompt-hint">減速靠右停妥，自動開門上下客</span>
       </div>
     </div>
-  </div>
 
-  <!-- 右上狀態欄 (下車鈴紅燈警示、氣壓手煞車、乘客數) -->
-  <div id="status-hud">
-    <div id="handbrake-indicator" class="hud-pill">
-      <span>🅿️ 氣煞:</span> <strong>正常</strong>
+    <div class="header-right">
+      <div id="handbrake-indicator" class="hud-pill"><span>🅿️ 氣煞: 正常</span></div>
+      <div id="bell-alert" class="hud-pill bell-indicator"><span>🔔 下車鈴未按</span></div>
+      <div class="hud-pill"><span>👥 <strong id="passenger-count">14</strong>人</span></div>
+      <div class="hud-pill" id="transmission-indicator">
+        <strong id="gear-display">N</strong>
+        <span id="clutch-display">離合器放</span>
+        <span id="engine-status">700 RPM</span>
+      </div>
+      <button class="hud-action-btn" id="btn-toggle-guide" title="查看操作指南 (H)"><span>❓ 指南</span></button>
+      <button class="hud-action-btn" id="btn-toggle-hud" title="純淨駕駛視野 (Tab)"><span>👁️ 視野</span></button>
     </div>
-    <div id="bell-alert" class="bell-indicator">
-      <span>🔔</span> 下車鈴未按
-    </div>
-    <div class="passenger-pill">
-      <span>👥 乘客人數:</span> <strong id="passenger-count">14</strong> 人
-    </div>
-    <div class="hud-pill" id="transmission-indicator">
-      <span>⚙️ 檔位:</span> <strong id="gear-display">N</strong>
-      <span id="clutch-display">離合器：放開</span>
-      <span id="engine-status">700 RPM</span>
-    </div>
-  </div>
+  </header>
 
-  <!-- 停靠站提示浮動視窗 (進站時亮起) -->
-  <div id="station-prompt">
-    🚏 即將抵達：<strong id="current-station-name">統聯轉運站</strong><br>
-    <small>請減速靠右停妥於「公車停靠區」，車門與乘客上下車流程會自動執行</small>
-  </div>
-
-  <!-- 駕駛艙底部儀表板 -->
+  <!-- 底部懸浮快捷操作面板 -->
   <div id="bottom-hud">
-    <!-- 數位時速表 -->
+    <!-- 數位時速小卡 -->
     <div class="cluster-card speed-box">
       <div class="speed-val" id="speed-display">0</div>
-      <div class="speed-unit">KM / H</div>
+      <div class="speed-unit">KM/H</div>
     </div>
 
-    <!-- 快捷車載操作面板 -->
+    <!-- 車載功能按鈕 -->
     <div class="cluster-card controls-box">
       <button class="hud-btn" id="btn-door-front">
-        <span>🚪 前門 (折疊)</span>
+        <span>🚪 前門</span>
         <span id="door-front-status">關閉</span>
         <kbd>1</kbd>
       </button>
 
       <button class="hud-btn" id="btn-door-mid">
-        <span>🚪 中門 (外滑)</span>
+        <span>🚪 中門</span>
         <span id="door-mid-status">關閉</span>
         <kbd>2</kbd>
       </button>
 
       <button class="hud-btn" id="btn-handbrake">
-        <span>🛑 氣壓手煞</span>
+        <span>🛑 手煞</span>
         <span>拔起排氣</span>
-        <kbd>Space</kbd>
+        <kbd>P</kbd>
       </button>
 
       <button class="hud-btn" id="btn-cam-switch">
-        <span>🎥 切換視角</span>
-        <span>左駕駕駛室/車外</span>
+        <span>🎥 視角</span>
+        <span>左駕/車外</span>
         <kbd>C</kbd>
       </button>
 
       <button class="hud-btn" id="btn-reference-audio">
-        <span>🎧 你的行車實錄</span>
+        <span>🎧 實錄</span>
         <span>未播放</span>
         <kbd>V</kbd>
       </button>
     </div>
   </div>
 
-  <!-- 右下角鍵盤操作教學 -->
-  <div id="controls-guide">
-    <strong>🎮 台灣大巴運轉控制指南</strong><br>
-    <kbd>W</kbd> / <kbd>↑</kbd> : 油門加速 (帶渦輪哨音)<br>
-    <kbd>S</kbd> / <kbd>↓</kbd> : 煞車減速 (帶排氣減速渦流) / 倒車<br>
-    <kbd>Shift</kbd> : 踩住離合器　<kbd>R</kbd> : 升檔　<kbd>F</kbd> : 降檔　<kbd>N</kbd> : 空檔<br>
-    手排起步：踩住 <kbd>Shift</kbd> → 按 <kbd>R</kbd> 入 1 檔 → 放開離合器並按 <kbd>W</kbd><br>
-    <kbd>A</kbd> / <kbd>D</kbd> : 大巴轉向 (帶你提供的真實轉彎警告蜂鳴聲)<br>
-    <kbd>Space</kbd> / <kbd>P</kbd> : 拔起氣壓手煞車 (嘶——喀！)<br>
-    <kbd>Q</kbd> / <kbd>X</kbd> : 左 / 右轉彎警告蜂鳴器 (你的實錄原檔)<br>
-    <kbd>1</kbd> / <kbd>2</kbd> : 開關 前門 / 中門 (氣壓洩氣聲)<br>
-    乘客會自動刷卡、按下車鈴並上下車<br>
-    <kbd>C</kbd> : 切換 <strong>左駕駕駛座</strong> / 車外第三人稱<br>
-    <kbd>H</kbd> : 鳴大巴喇叭　<kbd>V</kbd> : 播放／暫停你提供的原始行車錄音
+  <!-- 操作指南抽屜 (按 H 或點擊指南開啟，不再永久遮蔽前方視野) -->
+  <div id="controls-modal" class="modal-backdrop hidden">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>🎮 台灣大巴成運電能 EV BUS 運轉指南</h3>
+        <button id="btn-close-modal" class="btn-close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="guide-grid">
+          <div class="guide-col">
+            <h4>🕹️ 行車與手排變速箱</h4>
+            <p><kbd>W</kbd> / <kbd>↑</kbd> : 油門加速 (帶電驅哨音)</p>
+            <p><kbd>S</kbd> / <kbd>↓</kbd> : 煞車減速 / 倒車</p>
+            <p><kbd>Shift</kbd> : 踩住離合器（手排起步/換檔必踩）</p>
+            <p><kbd>R</kbd> / <kbd>F</kbd> : 升檔 / 降檔　<kbd>N</kbd> : 回空檔</p>
+            <p><kbd>A</kbd> / <kbd>D</kbd> : 方向盤轉向 (大車內輪差)</p>
+            <p><kbd>Space</kbd> / <kbd>P</kbd> : 拔起氣壓手煞車 (嘶——喀！)</p>
+          </div>
+          <div class="guide-col">
+            <h4>🚌 機關與車載系統</h4>
+            <p><kbd>Q</kbd> / <kbd>X</kbd> : 左 / 右轉彎警告蜂鳴器 (你提供的實錄)</p>
+            <p><kbd>1</kbd> / <kbd>2</kbd> : 開關 前折疊門 / 中外滑門</p>
+            <p><kbd>C</kbd> : 切換視角 (左駕座 / 車外追蹤 / 側身特寫)</p>
+            <p><kbd>H</kbd> : 開關指南手冊　<kbd>Tab</kbd> : 純淨駕駛視野</p>
+            <p><kbd>V</kbd> : 播放 / 暫停你提供的原始行車實錄</p>
+            <p>💡 乘客會自動刷卡、按下車鈴並上下車</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <small>按 <kbd>H</kbd> 或點擊空白處可隨時關閉此手冊</small>
+      </div>
+    </div>
   </div>
 
   <!-- 行動裝置虛擬按鈕 -->

@@ -80,32 +80,101 @@ export class TaichungCity {
   }
 
   createMaterials() {
-    // 瀝青路面 (Asphalt)
+    this.texRoad = this.createAsphaltTexture();
     this.matRoad = new THREE.MeshStandardMaterial({
-      color: 0x242629,
-      roughness: 0.85
+      map: this.texRoad,
+      roughness: 0.88,
+      metalness: 0.05
     });
 
-    // 騎樓人行道 (Sidewalk Tile)
+    this.texSidewalk = this.createSidewalkTexture();
     this.matSidewalk = new THREE.MeshStandardMaterial({
-      color: 0x8d8d8d,
-      roughness: 0.7
+      map: this.texSidewalk,
+      roughness: 0.82,
+      metalness: 0.05
     });
 
-    // 黃色標線 (Double Yellow Line & Motorcycle Box)
-    this.matYellowMarking = new THREE.MeshBasicMaterial({
-      color: 0xffcc00
+    this.matYellowMarking = new THREE.MeshStandardMaterial({
+      color: 0xffcc00,
+      roughness: 0.35
     });
 
-    // 白色標線 (White Lane Dividers & Bus Bay)
-    this.matWhiteMarking = new THREE.MeshBasicMaterial({
-      color: 0xf0f0f0
+    this.matWhiteMarking = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.35
     });
 
-    // 公車停靠專用標示 (Red Curb)
-    this.matRedCurb = new THREE.MeshBasicMaterial({
-      color: 0xd32f2f
+    this.matRedCurb = new THREE.MeshStandardMaterial({
+      color: 0xd32f2f,
+      roughness: 0.45
     });
+
+    this.matMetalRoof = new THREE.MeshStandardMaterial({
+      color: 0x245144,
+      roughness: 0.42,
+      metalness: 0.45
+    });
+
+    this.matWaterTank = new THREE.MeshStandardMaterial({
+      color: 0xdde3ea,
+      metalness: 0.9,
+      roughness: 0.18
+    });
+  }
+
+  createAsphaltTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#22252a';
+    ctx.fillRect(0, 0, 512, 512);
+
+    // 隨機細緻柏油顆粒噪點
+    const imgData = ctx.getImageData(0, 0, 512, 512);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (Math.random() - 0.5) * 26;
+      d[i] = Math.max(0, Math.min(255, d[i] + n));
+      d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
+      d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    // 車道輪胎壓磨軌跡 (左右各一道暗色摩擦帶)
+    ctx.fillStyle = 'rgba(16, 18, 22, 0.32)';
+    ctx.fillRect(70, 0, 110, 512);
+    ctx.fillRect(330, 0, 110, 512);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2, 60);
+    return tex;
+  }
+
+  createSidewalkTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#7a858e';
+    ctx.fillRect(0, 0, 256, 256);
+
+    ctx.strokeStyle = '#58626b';
+    ctx.lineWidth = 4;
+    for (let i = 0; i <= 256; i += 64) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0); ctx.lineTo(i, 256);
+      ctx.moveTo(0, i); ctx.lineTo(256, i);
+      ctx.stroke();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2, 60);
+    return tex;
   }
 
   // ==========================================
@@ -435,8 +504,10 @@ export class TaichungCity {
       { name: '全家 FamilyMart', color: '#0088ff', sub: '霜淇淋 酷繽沙' },
       { name: '50嵐 珍珠奶茶', color: '#ffd600', sub: '波霸奶茶 綠茶' },
       { name: '台中太陽餅 百年老店', color: '#d32f2f', sub: '手工伴手禮 檸檬餅' },
-      { name: '公益路 爌肉飯', color: '#e65100', sub: '二十年老店' },
-      { name: '台灣中油 CPC', color: '#1565c0', sub: '甲種加油站' }
+      { name: '公益路 爌肉飯', color: '#ea580c', sub: '二十年老店' },
+      { name: '清心福全 烏龍綠', color: '#16a34a', sub: '手搖飲 鮮泡茶' },
+      { name: '台灣中油 CPC', color: '#1d4ed8', sub: '甲種加油站' },
+      { name: '繼光香香雞 創始店', color: '#dc2626', sub: '現炸鹹酥雞' }
     ];
 
     let shopIdx = 0;
@@ -452,54 +523,200 @@ export class TaichungCity {
     }
   }
 
-  buildSingleBuilding(x, z, isLeft, shop) {
-    const bHeight = 12.0 + Math.random() * 8.0;
-    const bWidth = 14.0;
-    const bDepth = 30.0;
+  createBuildingFacadeTexture(shop, floors, wallColor) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
 
-    // 主樓體
+    // 牆面丁掛磚底色
+    ctx.fillStyle = wallColor;
+    ctx.fillRect(0, 0, 512, 512);
+
+    // 磚縫水平細線
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+    ctx.lineWidth = 1;
+    for (let y = 0; y < 512; y += 10) {
+      ctx.beginPath();
+      ctx.moveTo(0, y); ctx.lineTo(512, y);
+      ctx.stroke();
+    }
+
+    const floorH = 512 / (floors + 1);
+
+    // 1 樓：店面與騎樓 (Storefront & Arcade)
+    ctx.fillStyle = '#1e242c';
+    ctx.fillRect(0, 512 - floorH, 512, floorH);
+
+    // 店家橫招牌 (Store Signboard)
+    ctx.fillStyle = shop.color;
+    ctx.fillRect(16, 512 - floorH + 6, 480, floorH * 0.36);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 22px "Noto Sans TC", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(shop.name, 256, 512 - floorH + 8 + floorH * 0.24);
+
+    // 1 樓展示窗與暖黃照明
+    ctx.fillStyle = '#ffe082';
+    ctx.fillRect(36, 512 - floorH * 0.55, 190, floorH * 0.45);
+    ctx.fillRect(286, 512 - floorH * 0.55, 190, floorH * 0.45);
+
+    // 2 樓以上：住商鋁門窗、窗台、冷氣室外機
+    for (let f = 1; f <= floors; f++) {
+      const fy = 512 - (f + 1) * floorH;
+      for (let w = 0; w < 3; w++) {
+        const wx = 42 + w * 152;
+        const wy = fy + floorH * 0.20;
+        const ww = 120;
+        const wh = floorH * 0.62;
+
+        // 窗框
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(wx - 3, wy - 3, ww + 6, wh + 6);
+
+        // 玻璃（湛藍反光漸層）
+        const winGrad = ctx.createLinearGradient(wx, wy, wx + ww, wy + wh);
+        winGrad.addColorStop(0, '#60a5fa');
+        winGrad.addColorStop(1, '#1e3a8a');
+        ctx.fillStyle = winGrad;
+        ctx.fillRect(wx, wy, ww, wh);
+
+        // 窗櫺
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(wx + ww / 2, wy); ctx.lineTo(wx + ww / 2, wy + wh);
+        ctx.moveTo(wx, wy + wh / 2); ctx.lineTo(wx + ww, wy + wh / 2);
+        ctx.stroke();
+
+        // 台灣經典冷氣室外機 (Air Conditioner Unit on Side)
+        if (w === 2 || (w === 0 && f % 2 === 0)) {
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(wx + ww - 30, wy + wh - 18, 28, 17);
+          ctx.fillStyle = '#64748b';
+          ctx.beginPath();
+          ctx.arc(wx + ww - 16, wy + wh - 9, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  buildSingleBuilding(x, z, isLeft, shop) {
+    const floors = 3 + Math.floor(Math.random() * 3); // 3 到 5 層樓
+    const floorHeight = 3.6;
+    const bHeight = floors * floorHeight;
+    const bWidth = 14.0;
+    const bDepth = 32.0;
+
+    const wallColors = ['#d1d5db', '#e2d9cc', '#cfd6d3', '#e5e7eb', '#d7ccc8'];
+    const wallColor = wallColors[Math.floor(Math.random() * wallColors.length)];
+
+    const facadeTex = this.createBuildingFacadeTexture(shop, floors, wallColor);
+    const facadeMat = new THREE.MeshStandardMaterial({
+      map: facadeTex,
+      roughness: 0.72,
+      metalness: 0.08
+    });
+
+    const sideMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(wallColor).multiplyScalar(0.92),
+      roughness: 0.85
+    });
+
+    // 面向馬路的一面使用立面貼圖
+    const materials = [
+      isLeft ? facadeMat : sideMat,
+      isLeft ? sideMat : facadeMat,
+      sideMat,
+      sideMat,
+      sideMat,
+      sideMat
+    ];
+
     const building = new THREE.Mesh(
       new THREE.BoxGeometry(bWidth, bHeight, bDepth),
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color().setHSL(0.1, 0.1, 0.4 + Math.random() * 0.2),
-        roughness: 0.8
-      })
+      materials
     );
     building.position.set(x, bHeight / 2, z);
     building.castShadow = true;
     building.receiveShadow = true;
     this.group.add(building);
 
-    // 經典台灣懸掛直立式招牌 (Vertical Neon Signboard)
+    // 台灣特色頂樓加蓋鐵皮屋 (Corrugated Rooftop Extension)
+    if (Math.random() > 0.35) {
+      const roofH = 2.4;
+      const roofW = bWidth * 0.78;
+      const roofD = bDepth * 0.72;
+      const metalRoof = new THREE.Mesh(
+        new THREE.BoxGeometry(roofW, roofH, roofD),
+        this.matMetalRoof
+      );
+      metalRoof.position.set(x, bHeight + roofH / 2, z);
+      this.group.add(metalRoof);
+    }
+
+    // 台灣屋頂經典不鏽鋼水塔 (Stainless Steel Water Tank)
+    const tank = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.85, 0.85, 1.8, 16),
+      this.matWaterTank
+    );
+    tank.position.set(x + (isLeft ? 2.5 : -2.5), bHeight + 1.1, z + 3);
+    this.group.add(tank);
+
+    // 經典台灣懸掛直立式霓虹發光招牌 (Vertical Neon Signboard with Emissive Glow)
+    this.buildNeonSign(x, z, isLeft, bWidth, shop);
+  }
+
+  buildNeonSign(x, z, isLeft, bWidth, shop) {
     const signCanvas = document.createElement('canvas');
     signCanvas.width = 128;
     signCanvas.height = 512;
     const sCtx = signCanvas.getContext('2d');
 
+    // 招牌底色
     sCtx.fillStyle = shop.color;
     sCtx.fillRect(0, 0, 128, 512);
 
+    sCtx.strokeStyle = '#ffffff';
+    sCtx.lineWidth = 8;
+    sCtx.strokeRect(6, 6, 116, 500);
+
     sCtx.fillStyle = '#ffffff';
-    sCtx.font = 'bold 44px "Noto Sans TC", sans-serif';
+    sCtx.font = '900 46px "Noto Sans TC", sans-serif';
     sCtx.textAlign = 'center';
 
     const chars = shop.name.split('');
-    let cy = 70;
+    let cy = 72;
     for (const c of chars) {
       if (cy < 470) {
         sCtx.fillText(c, 64, cy);
-        cy += 48;
+        cy += 50;
       }
     }
 
     const signTex = new THREE.CanvasTexture(signCanvas);
+    const signMat = new THREE.MeshStandardMaterial({
+      map: signTex,
+      side: THREE.DoubleSide,
+      emissive: new THREE.Color(shop.color),
+      emissiveMap: signTex,
+      emissiveIntensity: 0.65,
+      roughness: 0.3
+    });
+
     const signMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.2, 5.0),
-      new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide })
+      new THREE.PlaneGeometry(1.4, 5.4),
+      signMat
     );
 
-    const signX = isLeft ? x + bWidth / 2 + 0.9 : x - bWidth / 2 - 0.9;
-    signMesh.position.set(signX, 6.0, z);
+    const signX = isLeft ? x + bWidth / 2 + 1.1 : x - bWidth / 2 - 1.1;
+    signMesh.position.set(signX, 6.5, z);
     this.group.add(signMesh);
   }
 
@@ -569,22 +786,34 @@ export class TaichungCity {
   buildTree(x, z) {
     const tree = new THREE.Group();
 
-    // 樹幹
+    // 粗壯樹幹 (Dark textured trunk)
     const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.2, 0.28, 3.0, 8),
-      new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.9 })
+      new THREE.CylinderGeometry(0.22, 0.34, 3.4, 8),
+      new THREE.MeshStandardMaterial({ color: 0x4e3629, roughness: 0.9 })
     );
-    trunk.position.y = 1.5;
+    trunk.position.y = 1.7;
+    trunk.castShadow = true;
     tree.add(trunk);
 
-    // 樹冠
-    const foliage = new THREE.Mesh(
-      new THREE.DodecahedronGeometry(1.8, 1),
-      new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.8 })
-    );
-    foliage.position.y = 3.8;
-    foliage.castShadow = true;
-    tree.add(foliage);
+    // 多層次濃密樹冠 (Multi-cluster foliage)
+    const leafMat1 = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.8 });
+    const leafMat2 = new THREE.MeshStandardMaterial({ color: 0x388e3c, roughness: 0.75 });
+    const leafMat3 = new THREE.MeshStandardMaterial({ color: 0x1b5e20, roughness: 0.85 });
+
+    const cluster1 = new THREE.Mesh(new THREE.DodecahedronGeometry(2.0, 1), leafMat1);
+    cluster1.position.set(0, 4.2, 0);
+    cluster1.castShadow = true;
+    tree.add(cluster1);
+
+    const cluster2 = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5, 1), leafMat2);
+    cluster2.position.set(0.6, 4.8, 0.4);
+    cluster2.castShadow = true;
+    tree.add(cluster2);
+
+    const cluster3 = new THREE.Mesh(new THREE.DodecahedronGeometry(1.6, 1), leafMat3);
+    cluster3.position.set(-0.5, 3.8, -0.4);
+    cluster3.castShadow = true;
+    tree.add(cluster3);
 
     tree.position.set(x, 0, z);
     this.group.add(tree);
