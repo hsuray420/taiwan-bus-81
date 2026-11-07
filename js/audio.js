@@ -24,6 +24,15 @@ export class BusAudioEngine {
     this.turboOsc = null;
     this.turboGain = null;
     this.engineRunning = false;
+    this.referenceAudioBuffer = null;
+    this.referenceAudioSource = null;
+    this.referenceAudioGain = null;
+    this.referenceAudioPlaying = false;
+    this.referenceAudioLoading = null;
+    this.turnSignalAudioBuffer = null;
+    this.turnSignalSource = null;
+    this.turnSignalGain = null;
+    this.turnSignalLoading = null;
 
     // Turn signal
     this.turnSignalTimer = null;
@@ -43,6 +52,8 @@ export class BusAudioEngine {
     this.ctx = new AudioContext();
     this.isInitialized = true;
     this.setupEngineSound();
+    this.referenceAudioLoading = this.loadReferenceRecording();
+    this.turnSignalLoading = this.loadTurnSignalRecording();
   }
 
   ensureContext() {
@@ -50,6 +61,119 @@ export class BusAudioEngine {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+  }
+
+  async loadReferenceRecording() {
+    if (!this.ctx || this.referenceAudioBuffer) return this.referenceAudioBuffer;
+    try {
+      const response = await fetch('./assets/audio/user-video-reference.mp3');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      this.referenceAudioBuffer = await this.ctx.decodeAudioData(await response.arrayBuffer());
+      return this.referenceAudioBuffer;
+    } catch (error) {
+      console.warn('Unable to load the user-provided reference recording.', error);
+      return null;
+    }
+  }
+
+  async loadTurnSignalRecording() {
+    if (!this.ctx || this.turnSignalAudioBuffer) return this.turnSignalAudioBuffer;
+    try {
+      const response = await fetch('./assets/audio/turn-signal.mp3');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      this.turnSignalAudioBuffer = await this.ctx.decodeAudioData(await response.arrayBuffer());
+      return this.turnSignalAudioBuffer;
+    } catch (error) {
+      console.warn('Unable to load user-provided turn-signal.mp3, using procedural fallback.', error);
+      return null;
+    }
+  }
+
+  async toggleReferenceRecording() {
+    this.ensureContext();
+    if (!this.ctx) return false;
+
+    if (this.referenceAudioPlaying) {
+      this.referenceAudioSource?.stop();
+      this.referenceAudioSource = null;
+      this.referenceAudioPlaying = false;
+      return false;
+    }
+
+    const buffer = this.referenceAudioBuffer || await this.referenceAudioLoading || this.loadReferenceRecording();
+    if (!buffer) return false;
+
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+    source.buffer = buffer;
+    source.loop = false;
+    gain.gain.setValueAtTime(0.28, this.ctx.currentTime);
+    source.connect(gain);
+    gain.connect(this.ctx.destination);
+    source.onended = () => {
+      if (this.referenceAudioSource === source) {
+        this.referenceAudioSource = null;
+        this.referenceAudioPlaying = false;
+      }
+    };
+    source.start();
+    this.referenceAudioSource = source;
+    this.referenceAudioGain = gain;
+    this.referenceAudioPlaying = true;
+    return true;
+  }
+
+  playGearShift(success = true) {
+    this.ensureContext();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(success ? 170 : 90, now);
+    osc.frequency.exponentialRampToValueAtTime(success ? 70 : 45, now + 0.055);
+    gain.gain.setValueAtTime(success ? 0.12 : 0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  }
+
+  playEngineStart() {
+    this.ensureContext();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(48, now);
+    osc.frequency.exponentialRampToValueAtTime(110, now + 0.42);
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.6);
+  }
+
+  playEngineStall() {
+    this.ensureContext();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    this.engineGain?.gain.setTargetAtTime(0.001, now, 0.08);
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(38, now + 0.4);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.5);
   }
 
   // ==========================================
@@ -176,24 +300,75 @@ export class BusAudioEngine {
   }
 
   // ==========================================
-  // 3. 司機運轉操作：方向燈繼電器「噠... 噠... 噠」
+  // 3. 司機運轉操作：方向燈與轉彎段警示蜂鳴器
+  // 採用使用者提供的真實轉彎段錄音 (turn-signal.mp3) 循環播放
   // ==========================================
   setTurnSignal(active) {
     if (this.turnSignalActive === active) return;
     this.turnSignalActive = active;
+    this.updateTurnAudioState();
+  }
 
-    if (active) {
-      this.playRelayClick(true);
-      let isTick = false;
-      this.turnSignalTimer = setInterval(() => {
-        isTick = !isTick;
-        this.playRelayClick(isTick);
-      }, 340); // 經典大巴方向燈頻率
+  setTurnWarning(active, direction = null) {
+    if (this.turnWarningActive === active && this.turnWarningDirection === direction) return;
+    this.turnWarningActive = active;
+    this.turnWarningDirection = direction;
+    this.updateTurnAudioState();
+  }
+
+  updateTurnAudioState() {
+    const shouldPlay = this.turnSignalActive || this.turnWarningActive;
+    if (shouldPlay) {
+      this.startTurnAudio();
     } else {
-      if (this.turnSignalTimer) {
-        clearInterval(this.turnSignalTimer);
-        this.turnSignalTimer = null;
+      this.stopTurnAudio();
+    }
+  }
+
+  async startTurnAudio() {
+    this.ensureContext();
+    if (!this.ctx) return;
+
+    if (this.turnSignalSource) return;
+
+    // 優先使用使用者提供的真實轉彎段音檔
+    const buffer = this.turnSignalAudioBuffer || await this.turnSignalLoading;
+    if (buffer) {
+      if (this.turnSignalSource) return;
+      const shouldPlay = this.turnSignalActive || this.turnWarningActive;
+      if (!shouldPlay) return;
+      const source = this.ctx.createBufferSource();
+      const gain = this.ctx.createGain();
+      source.buffer = buffer;
+      source.loop = true;
+      gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+      source.connect(gain);
+      gain.connect(this.ctx.destination);
+      source.start();
+      this.turnSignalSource = source;
+      this.turnSignalGain = gain;
+    } else {
+      // 未載入時使用仿真備援
+      if (!this.turnWarningTimer) {
+        this.playTurnWarning(this.turnWarningDirection);
+        this.turnWarningTimer = setInterval(() => {
+          this.playTurnWarning(this.turnWarningDirection);
+        }, 720);
       }
+    }
+  }
+
+  stopTurnAudio() {
+    if (this.turnSignalSource) {
+      try {
+        this.turnSignalSource.stop();
+        this.turnSignalSource.disconnect();
+      } catch (e) {}
+      this.turnSignalSource = null;
+    }
+    if (this.turnWarningTimer) {
+      clearInterval(this.turnWarningTimer);
+      this.turnWarningTimer = null;
     }
   }
 
@@ -216,27 +391,6 @@ export class BusAudioEngine {
 
     osc.start(now);
     osc.stop(now + 0.04);
-  }
-
-  // 大型車轉彎警示蜂鳴器。這是未取得 81 路原始錄音前的仿真 fallback；
-  // 收到可授權實錄後，可在同一個事件入口替換成音檔播放。
-  setTurnWarning(active, direction = null) {
-    if (this.turnWarningActive === active && this.turnWarningDirection === direction) return;
-
-    if (this.turnWarningTimer) {
-      clearInterval(this.turnWarningTimer);
-      this.turnWarningTimer = null;
-    }
-
-    this.turnWarningActive = active;
-    this.turnWarningDirection = direction;
-
-    if (active) {
-      this.playTurnWarning(direction);
-      this.turnWarningTimer = setInterval(() => {
-        this.playTurnWarning(this.turnWarningDirection);
-      }, 720);
-    }
   }
 
   playTurnWarning(direction = null) {
@@ -426,20 +580,21 @@ export class BusAudioEngine {
     this.engineRunning = true;
   }
 
-  updateEngine(speedKmh, throttle = 0, isRetarder = false) {
+  updateEngine(speedKmh, throttle = 0, isRetarder = false, gear = 0, rpm = 700, stalled = false) {
     if (!this.engineRunning || !this.ctx) return;
 
-    const baseFreq = 36;
-    const maxFreq = 96;
+    const baseFreq = stalled ? 24 : 28;
+    const maxFreq = stalled ? 28 : 104;
     const speedRatio = Math.min(Math.abs(speedKmh) / 60, 1.0);
-    const targetFreq = baseFreq + speedRatio * (maxFreq - baseFreq) + (throttle > 0 ? 14 : 0);
+    const rpmRatio = Math.min(Math.max(rpm, 0) / 2600, 1);
+    const targetFreq = baseFreq + rpmRatio * (maxFreq - baseFreq) + (throttle > 0 ? 10 : 0);
 
     const now = this.ctx.currentTime;
     this.engineOsc1.frequency.setTargetAtTime(targetFreq, now, 0.12);
     this.engineOsc2.frequency.setTargetAtTime(targetFreq * 2, now, 0.12);
 
     // 渦輪哨音隨油門拉高
-    if (throttle > 0) {
+    if (throttle > 0 && !stalled) {
       const turboFreq = 1400 + speedRatio * 1800;
       this.turboOsc.frequency.setTargetAtTime(turboFreq, now, 0.15);
       this.turboGain.gain.setTargetAtTime(0.035, now, 0.2);
@@ -452,9 +607,9 @@ export class BusAudioEngine {
       this.engineFilter.frequency.setTargetAtTime(420, now, 0.1);
       this.engineGain.gain.setTargetAtTime(0.22, now, 0.1);
     } else {
-      const targetFilter = 150 + speedRatio * 380 + (throttle > 0 ? 120 : 0);
+      const targetFilter = 150 + speedRatio * 380 + (throttle > 0 ? 120 : 0) + Math.abs(gear) * 12;
       this.engineFilter.frequency.setTargetAtTime(targetFilter, now, 0.2);
-      const targetVol = 0.12 + speedRatio * 0.12 + (throttle > 0 ? 0.05 : 0);
+      const targetVol = stalled ? 0.001 : 0.12 + speedRatio * 0.12 + (throttle > 0 ? 0.05 : 0);
       this.engineGain.gain.setTargetAtTime(targetVol, now, 0.1);
     }
   }

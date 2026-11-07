@@ -12,3 +12,18 @@ export const KL6112U1_SPEC = Object.freeze({
   driverSide: 'left',
   airConditioner: 'BLUESTAR'
 });
+
+export const EAL5195_EV_SPEC = Object.freeze({
+  model: 'MASTER BUS EV BUS',
+  plate: 'EAL-5195',
+  variant: 'Low Floor Electric City Bus',
+  lengthM: 11.8,
+  widthM: 2.5,
+  heightM: 3.2,
+  wheelbaseM: 5.8,
+  powertrain: 'Electric Motor Zero Emission',
+  driverSide: 'left',
+  livery: 'Tech White / Lime Green Wave',
+  batteryPackSoc: '100%',
+  batteryPackTemp: '48°C'
+});

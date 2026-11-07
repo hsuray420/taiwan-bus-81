@@ -49,6 +49,8 @@ export class KinglongBus {
     this.midDoorLeft = null;
     this.midDoorRight = null;
     this.steeringWheel = null;
+    this.gearLever = null;
+    this.clutchPedal = null;
     this.parkingBrakeValve = null;
     this.speedNeedle = null;
     this.rpmNeedle = null;
@@ -103,6 +105,46 @@ export class KinglongBus {
       color: 0x6d3f22,
       roughness: 0.3,
       metalness: 0.05
+    });
+
+    // 成運電 EV BUS (EAL-5195) 專用外觀與科技駕駛艙材質
+    this.matEVWhite = new THREE.MeshStandardMaterial({
+      color: 0xf6f8fa,
+      roughness: 0.22,
+      metalness: 0.1
+    });
+
+    this.matEVLimeGreen = new THREE.MeshStandardMaterial({
+      color: 0x22bb33,
+      roughness: 0.28,
+      metalness: 0.15
+    });
+
+    this.matCockpitPod = new THREE.MeshStandardMaterial({
+      color: 0xdde2e7,
+      roughness: 0.45,
+      metalness: 0.08
+    });
+
+    this.matWoodFloor = new THREE.MeshStandardMaterial({
+      color: 0x6a483c,
+      roughness: 0.72
+    });
+
+    this.matSteeringSilverTrim = new THREE.MeshStandardMaterial({
+      color: 0xf0f3f6,
+      metalness: 0.88,
+      roughness: 0.15
+    });
+
+    this.matMarkerLight = new THREE.MeshBasicMaterial({
+      color: 0xffaa00
+    });
+
+    this.matStopNextIndicator = new THREE.MeshStandardMaterial({
+      color: 0xbb2222,
+      emissive: 0x000000,
+      roughness: 0.25
     });
 
     // 6. 晶透前擋風玻璃 (Crystal Clear Laminated Windshield)
@@ -199,114 +241,232 @@ export class KinglongBus {
     const halfL = this.length / 2;
     const halfW = this.width / 2;
 
-    // 完整上車身殼體：讓車窗、門框與車頭不再漂浮在空氣中。
+    // 成運電 EV BUS 科技白主體車身殼體
     const bodyShell = new THREE.Mesh(
       new THREE.BoxGeometry(this.width, 2.25, this.length - 0.24),
-      this.matUbusGreen
+      this.matEVWhite
     );
     bodyShell.position.set(0, 1.68, 0);
     bodyShell.castShadow = true;
     bodyShell.receiveShadow = true;
     this.group.add(bodyShell);
 
+    // 車頂黑色飾帶 (Roblox EAL-5195 特徵)
+    const roofBlackBand = new THREE.Mesh(
+      new THREE.BoxGeometry(this.width + 0.02, 0.45, this.length - 0.2),
+      this.matGlossBlack
+    );
+    roofBlackBand.position.set(0, 2.65, 0);
+    this.group.add(roofBlackBand);
+
     // A. 低地板底盤總成 (Chassis Floor)
     const floorGeo = new THREE.BoxGeometry(this.width, 0.22, this.length);
     const floor = new THREE.Mesh(
       floorGeo,
-      new THREE.MeshStandardMaterial({ color: 0x2b3035, roughness: 0.9 })
+      new THREE.MeshStandardMaterial({ color: 0x24282c, roughness: 0.9 })
     );
     floor.position.set(0, 0.4, 0);
     floor.receiveShadow = true;
     this.group.add(floor);
 
-    // B. 左側裙板 (Left Side Lower Body Panel) - y: 0.5 ~ 1.45
+    // B. 左側裙板 (Left Side Lower Body Panel) - y: 0.5 ~ 1.45 (白綠幾何分色)
     const leftLowerGeo = new THREE.BoxGeometry(0.12, 0.95, this.length - 0.4);
-    const leftLower = new THREE.Mesh(leftLowerGeo, this.matUbusGreen);
+    const leftLower = new THREE.Mesh(leftLowerGeo, this.matEVWhite);
     leftLower.position.set(-halfW + 0.06, 0.95, 0);
     this.group.add(leftLower);
 
+    // 左側下緣果綠色科技飾條 (Lime Green Skirt)
+    const leftGreenSkirt = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.38, this.length - 0.4),
+      this.matEVLimeGreen
+    );
+    leftGreenSkirt.position.set(-halfW + 0.06, 0.68, 0);
+    this.group.add(leftGreenSkirt);
+
     // C. 右側裙板 (Right Side Lower Body Panels - 避開右前方前門與中央中門)
-    // 前門前裙板 (z: 5.4 ~ 5.8)
     const rLower1 = new THREE.Mesh(
       new THREE.BoxGeometry(0.12, 0.95, 0.5),
-      this.matUbusGreen
+      this.matEVWhite
     );
     rLower1.position.set(halfW - 0.06, 0.95, 5.6);
     this.group.add(rLower1);
 
-    // 前門與中門之間裙板 (z: 0.8 ~ 4.2)
     const rLower2 = new THREE.Mesh(
       new THREE.BoxGeometry(0.12, 0.95, 3.8),
-      this.matUbusGreen
+      this.matEVWhite
     );
     rLower2.position.set(halfW - 0.06, 0.95, 2.5);
     this.group.add(rLower2);
 
-    // 中門後裙板 (z: -5.6 ~ -1.6)
     const rLower3 = new THREE.Mesh(
       new THREE.BoxGeometry(0.12, 0.95, 4.2),
-      this.matUbusGreen
+      this.matEVWhite
     );
     rLower3.position.set(halfW - 0.06, 0.95, -3.6);
     this.group.add(rLower3);
 
-    // D. 統聯白色拉花飾條 (Official White Speed Swoosh)
-    const stripeL = new THREE.Mesh(
-      new THREE.BoxGeometry(0.14, 0.22, this.length - 0.4),
-      this.matWhite
+    // 右側果綠色下裙條
+    const rGreenSkirt1 = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.38, 3.8),
+      this.matEVLimeGreen
     );
-    stripeL.position.set(-halfW + 0.06, 0.95, 0);
-    this.group.add(stripeL);
+    rGreenSkirt1.position.set(halfW - 0.06, 0.68, 2.5);
+    this.group.add(rGreenSkirt1);
 
-    const stripeR = new THREE.Mesh(
-      new THREE.BoxGeometry(0.14, 0.22, 3.8),
-      this.matWhite
+    const rGreenSkirt2 = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.38, 4.2),
+      this.matEVLimeGreen
     );
-    stripeR.position.set(halfW - 0.06, 0.95, 2.5);
-    this.group.add(stripeR);
+    rGreenSkirt2.position.set(halfW - 0.06, 0.68, -3.6);
+    this.group.add(rGreenSkirt2);
 
-    // E. 車側高清晰統聯客運塗裝貼圖 (Side Decals)
+    // 側邊橘黃色長條輪廓標誌燈 (Side Amber Marker Lights - Roblox EAL-5195 細節)
+    for (const side of [-halfW - 0.02, halfW + 0.02]) {
+      for (const z of [5.2, 3.0, 1.2, -1.0, -3.5, -5.2]) {
+        const marker = new THREE.Mesh(
+          new THREE.BoxGeometry(0.04, 0.045, 0.16),
+          this.matMarkerLight
+        );
+        marker.position.set(side, 0.52, z);
+        this.group.add(marker);
+      }
+    }
+
+    // E. 車側高清晰成運電 EAL-5195 EV BUS 塗裝貼圖 (Side Decals)
     this.buildHighResSideDecals();
   }
 
   buildHighResSideDecals() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 1024, 256);
+    // 依據 IMG_4483 Roblox 成運電 EAL-5195 繪製左右兩側真實塗裝
+    const makeSideCanvas = (isRightSide) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 320;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, 1024, 320);
 
-    // 繪製統聯綠色金屬感漸層文字
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 84px "Noto Sans TC", sans-serif';
-    ctx.fillText('統聯客運', 40, 110);
+      // 上半部黑窗帶
+      ctx.fillStyle = '#111316';
+      ctx.fillRect(0, 0, 1024, 110);
 
-    ctx.fillStyle = '#ffeb3b';
-    ctx.font = 'bold 36px Arial, sans-serif';
-    ctx.fillText('UNITED BUS', 400, 75);
+      if (isRightSide) {
+        // 右側（車門側）：看向車身時，車頭在右 (+Z)，車尾在左 (-Z)
+        // 幾何果綠斜切科技波浪 (由右往左延伸)
+        ctx.fillStyle = '#22bb33';
+        ctx.beginPath();
+        ctx.moveTo(1024, 320);
+        ctx.lineTo(1024, 210);
+        ctx.lineTo(760, 200);
+        ctx.lineTo(580, 150);
+        ctx.lineTo(0, 160);
+        ctx.lineTo(0, 320);
+        ctx.closePath();
+        ctx.fill();
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 42px "Noto Sans TC", sans-serif';
-    ctx.fillText('81 統聯轉運站 ⇄ 太平', 400, 125);
+        // 車頭端車號 EAL-5195 (右上方)
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 64px Arial, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('EAL-5195', 990, 78);
 
-    ctx.fillStyle = '#cfd8dc';
-    ctx.font = 'bold 28px "Noto Sans TC", sans-serif';
-    ctx.fillText('(經 公益路、草悟道、臺中車站)', 40, 185);
+        // 充電線路與插頭
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(580, 32, 44, 34);
+        ctx.beginPath();
+        ctx.moveTo(580, 49); ctx.lineTo(540, 49);
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(520, 39, 20, 20);
+        ctx.fillRect(510, 43, 10, 4);
+        ctx.fillRect(510, 51, 10, 4);
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.anisotropy = 8;
-    const matDecal = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        // ZERO EMISSION 鮮明綠字
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = 'bold 30px Arial, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('ZERO EMISSION', 500, 74);
+
+        // 巨大斜體 EV BUS (中央偏左)
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'italic 900 118px "Arial Black", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('EV BUS', 460, 265);
+
+        // 81 路路線小標
+        ctx.fillStyle = '#103018';
+        ctx.font = 'bold 24px "Noto Sans TC", sans-serif';
+        ctx.fillText('81 統聯轉運站 ⇄ 臺中車站 ⇄ 太平', 460, 305);
+      } else {
+        // 左側（駕駛側）：看向車身時，車頭在左 (+Z)，車尾在右 (-Z)
+        // 幾何果綠斜切科技波浪 (由左往右延伸)
+        ctx.fillStyle = '#22bb33';
+        ctx.beginPath();
+        ctx.moveTo(0, 320);
+        ctx.lineTo(0, 210);
+        ctx.lineTo(260, 200);
+        ctx.lineTo(440, 150);
+        ctx.lineTo(1024, 160);
+        ctx.lineTo(1024, 320);
+        ctx.closePath();
+        ctx.fill();
+
+        // 車頭端車號 EAL-5195 (左上方)
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 64px Arial, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('EAL-5195', 34, 78);
+
+        // 充電線路與插頭
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(390, 32, 44, 34);
+        ctx.beginPath();
+        ctx.moveTo(434, 49); ctx.lineTo(474, 49);
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(474, 39, 20, 20);
+        ctx.fillRect(494, 43, 10, 4);
+        ctx.fillRect(494, 51, 10, 4);
+
+        // ZERO EMISSION 鮮明綠字
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = 'bold 30px Arial, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('ZERO EMISSION', 520, 74);
+
+        // 巨大斜體 EV BUS (中央偏右)
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'italic 900 118px "Arial Black", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('EV BUS', 560, 265);
+
+        // 81 路路線小標
+        ctx.fillStyle = '#103018';
+        ctx.font = 'bold 24px "Noto Sans TC", sans-serif';
+        ctx.fillText('81 統聯轉運站 ⇄ 臺中車站 ⇄ 太平', 560, 305);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.anisotropy = 8;
+      return new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+    };
 
     // 右側塗裝 (靠近乘客上車側)
-    const rightDecal = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), matDecal);
+    const rightDecal = new THREE.Mesh(new THREE.PlaneGeometry(8.2, 1.9), makeSideCanvas(true));
     rightDecal.rotation.y = Math.PI / 2;
-    rightDecal.position.set(this.width / 2 + 0.02, 0.95, 2.5);
+    rightDecal.position.set(this.width / 2 + 0.04, 1.45, 0);
     this.group.add(rightDecal);
 
     // 左側塗裝 (駕駛側)
-    const leftDecal = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), matDecal);
+    const leftDecal = new THREE.Mesh(new THREE.PlaneGeometry(8.2, 1.9), makeSideCanvas(false));
     leftDecal.rotation.y = -Math.PI / 2;
-    leftDecal.position.set(-this.width / 2 - 0.02, 0.95, 0);
+    leftDecal.position.set(-this.width / 2 - 0.04, 1.45, 0);
     this.group.add(leftDecal);
   }
 
@@ -511,14 +671,14 @@ export class KinglongBus {
     this.ledTexture.needsUpdate = true;
   }
 
-  // 台灣營業大客車綠底白字車牌 (Taiwan Commercial Bus Plate)
+  // 台灣電動大客車綠底白字車牌 (Taiwan EV Commercial Plate: EAL-5195)
   buildLicensePlate(x, y, z, isRear = false) {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#0f5b28'; // 營業大客車專用綠底
+    ctx.fillStyle = '#0f5b28'; // 綠底
     ctx.fillRect(0, 0, 256, 128);
 
     ctx.lineWidth = 6;
@@ -526,9 +686,12 @@ export class KinglongBus {
     ctx.strokeRect(6, 6, 244, 116);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 56px Arial, sans-serif';
+    ctx.font = 'bold 22px "Noto Sans TC", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('812-U9', 128, 86);
+    ctx.fillText('電動車', 128, 38);
+
+    ctx.font = '900 50px Arial, sans-serif';
+    ctx.fillText('EAL-5195', 128, 92);
 
     const texture = new THREE.CanvasTexture(canvas);
     const plate = new THREE.Mesh(
@@ -671,11 +834,20 @@ export class KinglongBus {
   }
 
   // ==========================================
-  // 9. 台灣標準左駕駕駛艙 (Left-Hand Drive Cockpit)
+  // 9. 台灣標準左駕駕駛艙 (Left-Hand Drive Cockpit - 依據 Roblox EAL-5195 實機圖還原)
   // 司機在左 (x = -0.75)，投幣箱與刷卡機在右 (x = -0.1 ~ +0.3)
   // ==========================================
   buildLeftHandDriveCockpit() {
     const driverX = -0.75; // 台灣左駕位置
+
+    // 仿木紋耐磨地板 (Wood-Grain Flooring - Roblox EAL-5195 特徵)
+    const woodFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.4, 2.0),
+      this.matWoodFloor
+    );
+    woodFloor.rotation.x = -Math.PI / 2;
+    woodFloor.position.set(driverX + 0.25, 0.42, 4.4);
+    this.group.add(woodFloor);
 
     // A. 駕駛艙專屬高背氣壓懸吊座椅
     const seatGroup = new THREE.Group();
@@ -694,36 +866,58 @@ export class KinglongBus {
     seatGroup.position.set(driverX, 0, 4.3);
     this.group.add(seatGroup);
 
-    // B. 金龍弧形駕駛座儀表台 (Slanted Instrument Console)
+    // B. 成運電現代一體化淺灰流線駕駛台 (Molded Cockpit Pod - Roblox EAL-5195)
+    const podShell = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5, 0.74, 1.15),
+      this.matCockpitPod
+    );
+    podShell.position.set(driverX + 0.16, 0.88, 4.9);
+    this.group.add(podShell);
+
     const dash = new THREE.Mesh(
-      new THREE.BoxGeometry(0.9, 0.68, 0.75),
+      new THREE.BoxGeometry(0.9, 0.45, 0.65),
       this.matMatteBlack
     );
-    dash.position.set(driverX, 0.88, 5.05);
+    dash.position.set(driverX, 1.02, 5.02);
     this.group.add(dash);
 
-    // 儀表板雙圓表盤 (時速表與轉速表貼圖)
-    this.buildInstrumentCluster(driverX, 1.05, 4.95);
+    // 儀表板：全數位雙圓液晶螢幕 (成運電 EAL-5195 數位儀表)
+    this.buildInstrumentCluster(driverX, 1.15, 4.96);
     this.buildAirPressureGauges(driverX, 1.05, 4.62);
     this.buildManualGearConsole(driverX - 0.22, 0.95, 4.18);
     this.buildDriverSwitchPanel(driverX + 0.48, 1.08, 4.78);
     this.buildDriverPedals(driverX, 0.52, 4.98);
 
-    // C. 大客車 45 度傾斜方向盤 (Steering Wheel)
+    // C. 成運電方向盤：帶底部銀白色 U 型亮條飾件 (Roblox EAL-5195 特徵)
     this.steeringWheel = new THREE.Group();
 
-    // 外圈
+    // 方向盤外圈 (深灰真皮握把)
     const wheelRim = new THREE.Mesh(
       new THREE.TorusGeometry(0.25, 0.024, 12, 32),
-      this.matWood
+      this.matGlossBlack
     );
     this.steeringWheel.add(wheelRim);
 
-    // 雙輻條與中心金龍喇叭蓋
-    const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.04, 0.02), this.matGlossBlack);
-    this.steeringWheel.add(spoke);
+    // 底部弧形銀白 U 型金屬飾條 (Silver U-Trim Accent)
+    const uTrim = new THREE.Mesh(
+      new THREE.TorusGeometry(0.245, 0.015, 8, 24, Math.PI * 0.92),
+      this.matSteeringSilverTrim
+    );
+    uTrim.rotation.z = Math.PI * 1.04;
+    uTrim.position.z = 0.008;
+    this.steeringWheel.add(uTrim);
 
-    const centerHub = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 16), this.matChrome);
+    // 雙側黑色橫向輻條
+    const spokeH = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.045, 0.022), this.matGlossBlack);
+    this.steeringWheel.add(spokeH);
+
+    // 垂直銀白下輻條
+    const spokeV = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.22, 0.022), this.matSteeringSilverTrim);
+    spokeV.position.y = -0.11;
+    this.steeringWheel.add(spokeV);
+
+    // 中心純電廠徽喇叭蓋
+    const centerHub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.035, 20), this.matChrome);
     centerHub.rotation.x = Math.PI / 2;
     this.steeringWheel.add(centerHub);
 
@@ -731,7 +925,19 @@ export class KinglongBus {
     this.steeringWheel.position.set(driverX, 1.12, 4.78);
     this.group.add(this.steeringWheel);
 
-    // D. 台灣大巴經典「黃色大香菇氣壓手煞車手柄」(Yellow Mushroom Parking Brake Valve)
+    // D. 左側 A 柱電子後視鏡螢幕 (Electronic Rearview Mirror Screen - Roblox 特徵)
+    this.buildElectronicMirrorScreen(driverX - 0.45, 1.9, 5.05);
+
+    // E. 左側黃框車載主機螢幕 (Yellow-framed Telematics Terminal - Roblox 特徵)
+    this.buildYellowTelematicsTerminal(driverX - 0.44, 1.25, 4.8);
+
+    // F. 右側多分割 CCTV 監控螢幕 (Multi-split CCTV Screen - Roblox 特徵)
+    this.buildCctvMonitorScreen(driverX + 0.52, 1.24, 4.88);
+
+    // G. 右上方圓形紅色「下站停車」燈號 (Round Stop Request Indicator - Roblox 特徵)
+    this.buildRoundStopNextIndicator(driverX + 0.38, 1.55, 4.96);
+
+    // H. 台灣大巴經典「黃色大香菇氣壓手煞車手柄」(Yellow Mushroom Parking Brake Valve)
     const pbBase = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.1, 8), this.matMatteBlack);
     pbBase.position.set(driverX + 0.38, 0.95, 4.5);
     this.group.add(pbBase);
@@ -743,7 +949,7 @@ export class KinglongBus {
     this.parkingBrakeValve.position.set(driverX + 0.38, 1.02, 4.5);
     this.group.add(this.parkingBrakeValve);
 
-    // E. 司機右側不鏽鋼投幣箱 (Stainless Steel Fare Coin Box)
+    // I. 司機右側不鏽鋼投幣箱 (Stainless Steel Fare Coin Box)
     const coinBox = new THREE.Group();
     const boxBody = new THREE.Mesh(
       new THREE.BoxGeometry(0.28, 0.65, 0.35),
@@ -752,7 +958,6 @@ export class KinglongBus {
     boxBody.position.y = 0.72;
     coinBox.add(boxBody);
 
-    // 投幣透明壓克力觀察窗
     const coinGlass = new THREE.Mesh(
       new THREE.BoxGeometry(0.24, 0.18, 0.02),
       this.matWindshield
@@ -763,16 +968,160 @@ export class KinglongBus {
     coinBox.position.set(-0.15, 0, 4.6);
     this.group.add(coinBox);
 
-    // F. 寶錄電子 (Baolu) IC 卡刷卡機 (面對上車乘客右側)
+    // J. 寶錄電子 (Baolu) IC 卡刷卡機 (面對上車乘客右側)
     this.buildBaoluCardReader();
 
-    // G. 駕駛安全壓克力透明防護板
+    // K. 駕駛安全壓克力透明防護板
     const partition = new THREE.Mesh(
       new THREE.BoxGeometry(0.02, 1.5, 1.4),
       this.matWindshield
     );
     partition.position.set(-0.35, 1.35, 4.1);
     this.group.add(partition);
+  }
+
+  // 左側 A 柱電子後視鏡螢幕
+  buildElectronicMirrorScreen(x, y, z) {
+    const eMirrorGroup = new THREE.Group();
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(0.03, 0.3, 0.42),
+      this.matGlossBlack
+    );
+    eMirrorGroup.add(frame);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 192;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#6ba4c8';
+    ctx.fillRect(0, 0, 256, 96);
+    ctx.fillStyle = '#263238';
+    ctx.fillRect(0, 96, 256, 96);
+    ctx.strokeStyle = '#ffd600';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(30, 192); ctx.lineTo(110, 96);
+    ctx.moveTo(226, 192); ctx.lineTo(146, 96);
+    ctx.stroke();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const screen = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.38, 0.26),
+      new THREE.MeshBasicMaterial({ map: texture })
+    );
+    screen.rotation.y = Math.PI / 2;
+    screen.position.x = 0.016;
+    eMirrorGroup.add(screen);
+
+    eMirrorGroup.position.set(x, y, z);
+    eMirrorGroup.rotation.y = Math.PI / 5.5;
+    this.group.add(eMirrorGroup);
+  }
+
+  // 左中控黃框車載主機
+  buildYellowTelematicsTerminal(x, y, z) {
+    const g = new THREE.Group();
+    const yellowBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(0.03, 0.24, 0.34),
+      new THREE.MeshStandardMaterial({ color: 0xffd600, roughness: 0.3 })
+    );
+    g.add(yellowBorder);
+
+    const innerScreen = new THREE.Mesh(
+      new THREE.BoxGeometry(0.032, 0.18, 0.28),
+      this.matGlossBlack
+    );
+    g.add(innerScreen);
+
+    g.position.set(x, y, z);
+    g.rotation.y = Math.PI / 4;
+    this.group.add(g);
+  }
+
+  // 右側多畫面 4 分割 CCTV 監控螢幕
+  buildCctvMonitorScreen(x, y, z) {
+    const g = new THREE.Group();
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(0.36, 0.26, 0.04),
+      this.matGlossBlack
+    );
+    g.add(frame);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 192;
+    const ctx = canvas.getContext('2d');
+    const cams = ['CH1 前門', 'CH2 中門', 'CH3 車廂', 'CH4 車尾'];
+    const camColors = ['#1a3328', '#222838', '#33261a', '#223333'];
+    for (let i = 0; i < 4; i++) {
+      const cx = (i % 2) * 128;
+      const cy = Math.floor(i / 2) * 96;
+      ctx.fillStyle = camColors[i];
+      ctx.fillRect(cx + 2, cy + 2, 124, 92);
+      ctx.fillStyle = '#00e676';
+      ctx.font = 'bold 15px "Noto Sans TC", sans-serif';
+      ctx.fillText(cams[i], cx + 8, cy + 22);
+      ctx.strokeStyle = '#222';
+      ctx.strokeRect(cx, cy, 128, 96);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const screen = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.32, 0.22),
+      new THREE.MeshBasicMaterial({ map: texture })
+    );
+    screen.position.z = 0.022;
+    g.add(screen);
+
+    g.position.set(x, y, z);
+    g.rotation.y = -Math.PI / 5.5;
+    this.group.add(g);
+  }
+
+  // 右上方圓形紅色「下站停車」燈號
+  buildRoundStopNextIndicator(x, y, z) {
+    const g = new THREE.Group();
+
+    const bezel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.075, 0.075, 0.02, 24),
+      this.matGlossBlack
+    );
+    bezel.rotation.x = Math.PI / 2;
+    g.add(bezel);
+
+    this.stopNextIndicator = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.065, 0.065, 0.025, 24),
+      this.matStopNextIndicator
+    );
+    this.stopNextIndicator.rotation.x = Math.PI / 2;
+    g.add(this.stopNextIndicator);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#1565c0';
+    ctx.beginPath();
+    ctx.arc(64, 44, 26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('♿', 64, 53);
+    ctx.font = 'bold 20px "Noto Sans TC", sans-serif';
+    ctx.fillText('下站停車', 64, 96);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const face = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.12, 0.12),
+      new THREE.MeshBasicMaterial({ map: texture, transparent: true })
+    );
+    face.position.z = 0.015;
+    g.add(face);
+
+    g.position.set(x, y, z);
+    g.rotation.x = -Math.PI / 8;
+    this.group.add(g);
   }
 
   buildAirPressureGauges(x, y, z) {
@@ -804,19 +1153,22 @@ export class KinglongBus {
     console.position.set(x, y, z);
     this.group.add(console);
 
+    this.gearLever = new THREE.Group();
     const shaft = new THREE.Mesh(
       new THREE.CylinderGeometry(0.018, 0.018, 0.22, 8),
       this.matChrome
     );
-    shaft.position.set(x, y + 0.14, z);
-    this.group.add(shaft);
+    shaft.position.y = 0.14;
+    this.gearLever.add(shaft);
 
     const knob = new THREE.Mesh(
       new THREE.SphereGeometry(0.055, 12, 8),
       new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.25 })
     );
-    knob.position.set(x, y + 0.27, z);
-    this.group.add(knob);
+    knob.position.y = 0.27;
+    this.gearLever.add(knob);
+    this.gearLever.position.set(x, y, z);
+    this.group.add(this.gearLever);
   }
 
   buildDriverSwitchPanel(x, y, z) {
@@ -843,6 +1195,7 @@ export class KinglongBus {
 
   buildDriverPedals(x, y, z) {
     const pedalMaterial = new THREE.MeshStandardMaterial({ color: 0x30343a, roughness: 0.7 });
+    const pedals = [];
     for (let index = -1; index <= 1; index += 1) {
       const pedal = new THREE.Mesh(
         new THREE.BoxGeometry(0.09, 0.2, 0.035),
@@ -851,47 +1204,228 @@ export class KinglongBus {
       pedal.rotation.x = -Math.PI / 8;
       pedal.position.set(x + index * 0.14, y, z);
       this.group.add(pedal);
+      pedals.push(pedal);
     }
+    this.clutchPedal = pedals[0];
   }
 
-  // 繪製擬真儀表板表盤 (Speedometer & Gauges)
+  setGearPosition(gear) {
+    if (!this.gearLever) return;
+    const column = gear === -1 ? -0.18 : gear === 0 ? 0 : gear > 3 ? 0.14 : -0.05;
+    const foreAft = gear === 0 ? 0 : (gear % 2 === 0 ? -0.06 : 0.06);
+    this.gearLever.rotation.z = column;
+    this.gearLever.rotation.x = foreAft;
+  }
+
+  setClutchPedal(pressed) {
+    if (!this.clutchPedal) return;
+    this.clutchPedal.rotation.x = pressed ? -Math.PI / 3.2 : -Math.PI / 8;
+  }
+
+  // 繪製擬真成運電雙圓全數位液晶儀表板 (Dual Digital LCD Cluster - Roblox EAL-5195 特徵)
   buildInstrumentCluster(x, y, z) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
+    this.clusterCanvas = document.createElement('canvas');
+    this.clusterCanvas.width = 512;
+    this.clusterCanvas.height = 256;
+    this.clusterCtx = this.clusterCanvas.getContext('2d');
+    this.clusterTexture = new THREE.CanvasTexture(this.clusterCanvas);
 
-    ctx.fillStyle = '#141414';
-    ctx.fillRect(0, 0, 256, 128);
-
-    // 左表：時速表 (0-100 km/h)
-    ctx.strokeStyle = '#00e676';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(64, 64, 48, Math.PI * 0.75, Math.PI * 2.25);
-    ctx.stroke();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('km/h', 64, 90);
-
-    // 右表：引擎轉速表 (0-3000 RPM)
-    ctx.strokeStyle = '#ff9100';
-    ctx.beginPath();
-    ctx.arc(192, 64, 48, Math.PI * 0.75, Math.PI * 2.25);
-    ctx.stroke();
-
-    ctx.fillText('RPM', 192, 90);
-
-    const texture = new THREE.CanvasTexture(canvas);
     const cluster = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.5, 0.25),
-      new THREE.MeshBasicMaterial({ map: texture })
+      new THREE.PlaneGeometry(0.52, 0.26),
+      new THREE.MeshBasicMaterial({ map: this.clusterTexture })
     );
     cluster.rotation.x = -Math.PI / 4;
     cluster.position.set(x, y, z);
     this.group.add(cluster);
+
+    this.updateDigitalCluster({
+      speedKmh: 0,
+      gearLabel: 'N',
+      rpm: 800,
+      batteryPct: 100,
+      batteryTemp: 48,
+      leftSignal: false,
+      rightSignal: false,
+      parkingBrake: false
+    });
+  }
+
+  updateDigitalCluster({
+    speedKmh = 0,
+    gearLabel = 'N',
+    rpm = 800,
+    batteryPct = 100,
+    batteryTemp = 48,
+    leftSignal = false,
+    rightSignal = false,
+    parkingBrake = false
+  } = {}) {
+    if (!this.clusterCtx) return;
+    const ctx = this.clusterCtx;
+    const w = this.clusterCanvas.width;
+    const h = this.clusterCanvas.height;
+
+    // 清空背景 (暗色科技液晶底色)
+    ctx.fillStyle = '#080d12';
+    ctx.fillRect(0, 0, w, h);
+
+    // 外框與科技線條
+    ctx.strokeStyle = '#1b3226';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(6, 6, w - 12, h - 12);
+
+    const cy = 138;
+    const radius = 82;
+
+    // ==========================================
+    // 左儀表：電量與動力狀態 (Roblox 100% 48°C)
+    // ==========================================
+    const leftCx = 138;
+
+    // 底圓弧度 (深墨綠)
+    ctx.beginPath();
+    ctx.arc(leftCx, cy, radius, Math.PI * 0.75, Math.PI * 2.25);
+    ctx.strokeStyle = '#173324';
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 亮綠電量弧度
+    const batRatio = Math.max(0, Math.min(1, batteryPct / 100));
+    const batEndAngle = Math.PI * 0.75 + batRatio * (Math.PI * 1.5);
+    ctx.beginPath();
+    ctx.arc(leftCx, cy, radius, Math.PI * 0.75, batEndAngle);
+    ctx.strokeStyle = '#00e676';
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 刻度線
+    for (let i = 0; i <= 10; i++) {
+      const angle = Math.PI * 0.75 + (i / 10) * (Math.PI * 1.5);
+      const x1 = leftCx + Math.cos(angle) * (radius - 14);
+      const y1 = cy + Math.sin(angle) * (radius - 14);
+      const x2 = leftCx + Math.cos(angle) * (radius - 22);
+      const y2 = cy + Math.sin(angle) * (radius - 22);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+      ctx.strokeStyle = '#2d533d';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // 左圓中央文字：100% 電量
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.round(batteryPct)}%`, leftCx, cy - 4);
+
+    // 電池圖標與溫度 48°C (Roblox 特徵)
+    ctx.fillStyle = '#00e676';
+    ctx.font = 'bold 16px "Noto Sans TC", sans-serif';
+    ctx.fillText('⚡ SOC', leftCx, cy + 20);
+
+    ctx.fillStyle = '#4fc3f7';
+    ctx.font = 'bold 18px Arial, sans-serif';
+    ctx.fillText(`${Math.round(batteryTemp)}°C`, leftCx, cy + 44);
+
+    ctx.fillStyle = '#81c784';
+    ctx.font = 'bold 13px "Noto Sans TC", sans-serif';
+    ctx.fillText('成運電能 EV-POW', leftCx, cy - 42);
+
+    // ==========================================
+    // 右儀表：數位時速與檔位 (Roblox Speed & Gear)
+    // ==========================================
+    const rightCx = 374;
+
+    // 底圓弧度
+    ctx.beginPath();
+    ctx.arc(rightCx, cy, radius, Math.PI * 0.75, Math.PI * 2.25);
+    ctx.strokeStyle = '#173324';
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 時速亮條 (0 - 100 km/h)
+    const speedRatio = Math.max(0, Math.min(1, speedKmh / 90));
+    const speedEndAngle = Math.PI * 0.75 + speedRatio * (Math.PI * 1.5);
+    ctx.beginPath();
+    ctx.arc(rightCx, cy, radius, Math.PI * 0.75, speedEndAngle);
+    ctx.strokeStyle = speedKmh > 60 ? '#ff5252' : '#00e676';
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 刻度線
+    for (let i = 0; i <= 10; i++) {
+      const angle = Math.PI * 0.75 + (i / 10) * (Math.PI * 1.5);
+      const x1 = rightCx + Math.cos(angle) * (radius - 14);
+      const y1 = cy + Math.sin(angle) * (radius - 14);
+      const x2 = rightCx + Math.cos(angle) * (radius - 22);
+      const y2 = cy + Math.sin(angle) * (radius - 22);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+      ctx.strokeStyle = '#2d533d';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // 右圓中央數字：大字時速
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 44px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.round(speedKmh)}`, rightCx, cy - 4);
+
+    ctx.fillStyle = '#9e9e9e';
+    ctx.font = 'bold 15px Arial, sans-serif';
+    ctx.fillText('km/h', rightCx, cy + 18);
+
+    // 檔位指示 (D / N / R / 1..5)
+    ctx.fillStyle = gearLabel === 'R' ? '#ff5252' : gearLabel === 'N' ? '#ffb300' : '#00e676';
+    ctx.font = 'bold 22px Arial, sans-serif';
+    ctx.fillText(`GEAR: ${gearLabel}`, rightCx, cy + 44);
+
+    // ==========================================
+    // 中央頂部：指示燈與狀態 (Roblox / 台灣大巴標準)
+    // ==========================================
+    const midX = 256;
+
+    // 左轉燈箭頭 (◀)
+    ctx.fillStyle = leftSignal ? '#00e676' : '#182d20';
+    ctx.beginPath();
+    ctx.moveTo(midX - 44, 42);
+    ctx.lineTo(midX - 24, 28);
+    ctx.lineTo(midX - 24, 56);
+    ctx.closePath();
+    ctx.fill();
+
+    // 右轉燈箭頭 (▶)
+    ctx.fillStyle = rightSignal ? '#00e676' : '#182d20';
+    ctx.beginPath();
+    ctx.moveTo(midX + 44, 42);
+    ctx.lineTo(midX + 24, 28);
+    ctx.lineTo(midX + 24, 56);
+    ctx.closePath();
+    ctx.fill();
+
+    // 中央 READY 綠色亮燈
+    ctx.fillStyle = '#00e676';
+    ctx.font = 'bold 15px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('READY', midX, 46);
+
+    // 手煞車指示燈 (P)
+    ctx.fillStyle = parkingBrake ? '#ff1744' : '#281a1a';
+    ctx.font = 'bold 16px Arial, sans-serif';
+    ctx.fillText('( P )', midX, 78);
+
+    // 里程與系統資訊
+    ctx.fillStyle = '#78909c';
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText('ODO: 12,842 km', midX, 188);
+    ctx.fillText('EAL-5195 MASTER', midX, 212);
+
+    this.clusterTexture.needsUpdate = true;
   }
 
   // ==========================================
@@ -1045,6 +1579,15 @@ export class KinglongBus {
       } else {
         b.material.emissive.setHex(0x000000);
         b.material.color.setHex(0xff3b30);
+      }
+    }
+    if (this.stopNextIndicator) {
+      if (active) {
+        this.stopNextIndicator.material.emissive.setHex(0xff2222);
+        this.stopNextIndicator.material.color.setHex(0xff3333);
+      } else {
+        this.stopNextIndicator.material.emissive.setHex(0x000000);
+        this.stopNextIndicator.material.color.setHex(0xbb2222);
       }
     }
   }

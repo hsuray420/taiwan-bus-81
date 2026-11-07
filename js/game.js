@@ -11,15 +11,22 @@
  */
 
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import { KinglongBus } from './bus.js?v=d25635b';
+import { KinglongBus } from './bus.js?v=manual-transmission-20261107';
 import { TaichungCity, STATIONS } from './city.js?v=d25635b';
-import { BusAudioEngine } from './audio.js?v=d25635b';
+import { BusAudioEngine } from './audio.js?v=manual-transmission-20261107';
 import {
   applyPassengerEvent,
   createPassengerEventPlan,
   shouldAutoOpenFrontDoor,
   shouldPlayTurnWarning
-} from './passenger-events.mjs?v=d25635b';
+} from './passenger-events.mjs?v=manual-transmission-20261107';
+import {
+  calculateDriveForce,
+  calculateEngineRpm,
+  gearLabel,
+  isEngineStalled,
+  shiftGear as selectManualGear
+} from './manual-transmission.mjs?v=manual-transmission-20261107';
 
 export class Game {
   constructor() {
@@ -81,6 +88,11 @@ export class Game {
     this.cameraDistance = 15.0;
     this.cameraHeight = 4.2;
 
+    // 手排變速箱狀態：啟動時留在空檔，必須踩離合器才能入檔。
+    this.gear = 0;
+    this.engineRpm = 700;
+    this.engineStalled = false;
+
     // Parking brake state
     this.isParkingBrakeEngaged = false;
     this.leftTurnActive = false;
@@ -134,10 +146,16 @@ export class Game {
       this.keys[k] = true;
       this.keys[e.code] = true;
 
+      if (e.repeat) return;
+
       // Single action hotkeys
       if (k === '1') this.toggleFrontDoor();
       if (k === '2') this.toggleMiddleDoor();
       if (k === 'c') this.cycleCamera();
+      if (k === 'r') this.changeGear(1);
+      if (k === 'f') this.changeGear(-1);
+      if (k === 'n') this.setNeutral();
+      if (k === 'v') this.toggleReferenceRecording();
       if (k === 'h') this.audio.playHorn();
       if (k === 'p' || e.code === 'Space') this.toggleParkingBrake();
       if (k === 'q') this.toggleTurnSignal('left');
@@ -181,6 +199,7 @@ export class Game {
     document.getElementById('btn-door-mid')?.addEventListener('click', () => this.toggleMiddleDoor());
     document.getElementById('btn-cam-switch')?.addEventListener('click', () => this.cycleCamera());
     document.getElementById('btn-handbrake')?.addEventListener('click', () => this.toggleParkingBrake());
+    document.getElementById('btn-reference-audio')?.addEventListener('click', () => this.toggleReferenceRecording());
   }
 
   // ==========================================
@@ -213,6 +232,51 @@ export class Game {
     }
     const anyActive = this.leftTurnActive || this.rightTurnActive;
     this.audio.setTurnSignal(anyActive);
+  }
+
+  get clutchPressed() {
+    return Boolean(this.keys.ShiftLeft || this.keys.ShiftRight || this.keys.shift);
+  }
+
+  changeGear(direction) {
+    const nextGear = selectManualGear(this.gear, direction, {
+      clutchPressed: this.clutchPressed,
+      speedMps: this.busSpeed
+    });
+
+    if (nextGear === this.gear) {
+      this.audio.playGearShift(false);
+      this.showFloatingNotice(this.clutchPressed ? '⚠️ 車速過快，無法掛入這個檔位' : '⚠️ 請先踩住離合器（Shift）');
+      return;
+    }
+
+    this.gear = nextGear;
+    this.bus.setGearPosition(this.gear);
+    this.audio.playGearShift(true);
+    this.showFloatingNotice(`⚙️ 已掛入 ${gearLabel(this.gear)} 檔`);
+    this.updateTransmissionUI();
+  }
+
+  setNeutral() {
+    if (!this.clutchPressed && this.gear !== 0) {
+      this.showFloatingNotice('⚠️ 請踩住離合器（Shift）再回空檔');
+      return;
+    }
+    this.gear = 0;
+    this.bus.setGearPosition(this.gear);
+    this.audio.playGearShift(true);
+    this.showFloatingNotice('⚙️ 已回到空檔 N');
+    this.updateTransmissionUI();
+  }
+
+  toggleReferenceRecording() {
+    this.audio.toggleReferenceRecording().then((playing) => {
+      this.showFloatingNotice(playing ? '🎧 播放你提供的原始行車實錄' : '⏸️ 已暫停原始行車實錄');
+      const button = document.getElementById('btn-reference-audio');
+      if (button) button.querySelector('span:last-of-type').innerText = playing ? '播放中' : '未播放';
+    }).catch(() => {
+      this.showFloatingNotice('⚠️ 原始錄音載入失敗，請確認 assets/audio 檔案存在');
+    });
   }
 
   toggleFrontDoor() {
@@ -262,8 +326,8 @@ export class Game {
   }
 
   cycleCamera() {
-    this.cameraMode = (this.cameraMode + 1) % 2;
-    const names = ['台灣標準左駕駛室視角', '車外第三人稱追蹤視角'];
+    this.cameraMode = (this.cameraMode + 1) % 3;
+    const names = ['台灣標準左駕駕駛室視角', '車外第三人稱追蹤視角', '成運電側身全車特寫視角'];
     this.showFloatingNotice(`已切換至：${names[this.cameraMode]}`);
   }
 
@@ -288,26 +352,46 @@ export class Game {
     const backward = this.keys['s'] || this.keys['arrowdown'];
     const left = this.keys['a'] || this.keys['arrowleft'];
     const right = this.keys['d'] || this.keys['arrowright'];
+    const clutchPressed = this.clutchPressed;
+    const isReverseThrottle = this.gear < 0 && backward;
+    const isForwardThrottle = this.gear > 0 && forward;
+    const throttle = isReverseThrottle || isForwardThrottle ? 1 : 0;
+    const brakeInput = backward && this.gear >= 0 && this.busSpeed > 0;
+
+    this.bus.setClutchPedal(clutchPressed);
+
+    // 數位離合器：踩住時切斷傳動，放開後由檔位決定驅動方向。
+    if (this.engineStalled && clutchPressed && forward) {
+      this.engineStalled = false;
+      this.audio.playEngineStart();
+      this.showFloatingNotice('🔑 引擎重新啟動');
+    }
 
     // 氣壓手煞車限制
     if (this.isParkingBrakeEngaged) {
       this.busSpeed *= 0.85;
       if (Math.abs(this.busSpeed) < 0.05) this.busSpeed = 0;
+    } else if (this.engineStalled) {
+      this.busSpeed *= Math.pow(this.drag, delta * 60);
+    } else if (brakeInput) {
+      this.busSpeed = Math.max(0, this.busSpeed - this.braking * delta);
+    } else if (clutchPressed) {
+      this.busSpeed *= Math.pow(this.drag, delta * 28);
+      if (Math.abs(this.busSpeed) < 0.05) this.busSpeed = 0;
     } else {
-      // 正常油門與煞車
-      if (forward) {
-        if (this.busSpeed < this.maxSpeed) {
-          this.busSpeed += this.acceleration * delta;
-        }
-      } else if (backward) {
-        if (this.busSpeed > 0.4) {
-          this.busSpeed -= this.braking * delta;
-        } else {
-          // 倒車
-          this.busSpeed = Math.max(this.maxReverseSpeed, this.busSpeed - this.acceleration * 0.6 * delta);
-        }
+      const driveForce = calculateDriveForce({
+        gear: this.gear,
+        clutchPressed,
+        throttle,
+        speedMps: this.busSpeed
+      });
+
+      if (this.gear < 0 && isReverseThrottle) {
+        this.busSpeed = Math.max(this.maxReverseSpeed, this.busSpeed - Math.abs(driveForce) * delta);
+      } else if (this.gear > 0 && isForwardThrottle) {
+        this.busSpeed = Math.min(this.maxSpeed, this.busSpeed + driveForce * delta);
       } else {
-        this.busSpeed *= this.drag;
+        this.busSpeed *= Math.pow(this.drag, delta * 60);
         if (Math.abs(this.busSpeed) < 0.05) this.busSpeed = 0;
       }
     }
@@ -365,10 +449,53 @@ export class Game {
 
     // 引擎聲浪動態更新
     const speedKmh = Math.abs(this.busSpeed * 3.6);
-    this.audio.updateEngine(speedKmh, forward ? 1 : 0, backward && speedKmh > 15);
+    this.engineRpm = calculateEngineRpm({
+      speedMps: this.busSpeed,
+      gear: this.gear,
+      throttle,
+      stalled: this.engineStalled
+    });
+    if (!this.engineStalled && isEngineStalled({
+      gear: this.gear,
+      clutchPressed,
+      speedMps: this.busSpeed,
+      throttle,
+      rpm: this.engineRpm
+    })) {
+      this.engineStalled = true;
+      this.busSpeed = 0;
+      this.audio.playEngineStall();
+      this.showFloatingNotice('🛑 拖檔熄火：踩住離合器並按 W 重新啟動');
+    }
+    this.audio.updateEngine(
+      speedKmh,
+      throttle,
+      this.gear > 0 && backward && speedKmh > 15,
+      this.gear,
+      this.engineRpm,
+      this.engineStalled
+    );
+
+    // 更新成運電數位液晶儀表板 (Roblox 100% 48°C / 時速 / 檔位 / 方向燈)
+    if (this.bus.updateDigitalCluster) {
+      const flash = Math.floor(Date.now() / 320) % 2 === 0;
+      const leftBlink = (this.leftTurnActive || (left && speedKmh > 2)) && flash;
+      const rightBlink = (this.rightTurnActive || (right && speedKmh > 2)) && flash;
+      this.bus.updateDigitalCluster({
+        speedKmh,
+        gearLabel: gearLabel(this.gear),
+        rpm: this.engineRpm,
+        batteryPct: Math.max(92, 100 - (Math.abs(this.busPos.z) / 400)),
+        batteryTemp: 48,
+        leftSignal: leftBlink,
+        rightSignal: rightBlink,
+        parkingBrake: this.isParkingBrakeEngaged
+      });
+    }
 
     // 更新 HUD
     this.updateSpeedometer(speedKmh);
+    this.updateTransmissionUI();
     this.checkStationProximity();
   }
 
@@ -508,6 +635,12 @@ export class Game {
 
       this.camera.position.copy(this.busPos).add(camOffset);
       this.camera.lookAt(this.busPos.x, this.busPos.y + 1.7, this.busPos.z);
+    } else if (this.cameraMode === 2) {
+      // 模式 2：車身右側 45 度全身特寫視角 (成運電 EAL-5195 科技塗裝與車門特寫)
+      const sideOffset = new THREE.Vector3(5.8, 2.0, 1.2);
+      sideOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.busHeading);
+      this.camera.position.copy(this.busPos).add(sideOffset);
+      this.camera.lookAt(this.busPos.x, this.busPos.y + 1.3, this.busPos.z);
     }
   }
 
@@ -517,6 +650,15 @@ export class Game {
   updateSpeedometer(kmh) {
     const el = document.getElementById('speed-display');
     if (el) el.innerText = Math.round(kmh);
+  }
+
+  updateTransmissionUI() {
+    const gearEl = document.getElementById('gear-display');
+    const clutchEl = document.getElementById('clutch-display');
+    const engineEl = document.getElementById('engine-status');
+    if (gearEl) gearEl.innerText = gearLabel(this.gear);
+    if (clutchEl) clutchEl.innerText = this.clutchPressed ? '離合器：踩下' : '離合器：放開';
+    if (engineEl) engineEl.innerText = this.engineStalled ? '熄火' : `${Math.round(this.engineRpm)} RPM`;
   }
 
   updateStationHUD() {
