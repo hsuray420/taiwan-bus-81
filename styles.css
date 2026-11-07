@@ -1,0 +1,382 @@
+/* Taiwan Bus 81 - Simulation HUD Stylesheet */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Noto+Sans+TC:wght@400;700;900&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #000;
+  font-family: 'Noto Sans TC', sans-serif;
+  color: #fff;
+}
+
+#canvas-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+/* ==========================================
+   頂部路線資訊看板 (Top Route Header)
+   ========================================== */
+#top-hud {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(16, 20, 26, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px);
+  padding: 10px 24px;
+  border-radius: 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.route-badge {
+  background: linear-gradient(135deg, #11853b, #0a5624);
+  color: #fff;
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  padding: 4px 16px;
+  border-radius: 8px;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 12px rgba(17, 133, 59, 0.5);
+}
+
+.route-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.route-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f5f5f5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.route-title span {
+  color: #00e676;
+  font-size: 12px;
+  font-weight: 400;
+  background: rgba(0, 230, 118, 0.15);
+  border: 1px solid rgba(0, 230, 118, 0.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.route-stations {
+  font-size: 12px;
+  color: #90a4ae;
+  margin-top: 2px;
+}
+
+/* ==========================================
+   右上方狀態欄 (下車鈴警示、氣壓手煞車、乘客數)
+   ========================================== */
+#status-hud {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+}
+
+.hud-pill {
+  background: rgba(18, 22, 28, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 13px;
+  color: #cfd8dc;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.hud-pill.active {
+  background: rgba(211, 47, 47, 0.95);
+  border-color: #ff5252;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 18px rgba(255, 23, 68, 0.8);
+}
+
+.bell-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(30, 30, 30, 0.8);
+  border: 1px solid #555;
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 14px;
+  color: #777;
+  transition: all 0.3s ease;
+}
+
+.bell-indicator.active {
+  background: rgba(211, 47, 47, 0.95);
+  border-color: #ff5252;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 20px rgba(255, 23, 68, 0.8);
+  animation: pulse-bell 0.8s infinite alternate;
+}
+
+@keyframes pulse-bell {
+  from { transform: scale(1); }
+  to { transform: scale(1.06); }
+}
+
+.passenger-pill {
+  background: rgba(18, 22, 28, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 13px;
+  color: #cfd8dc;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ==========================================
+   中央到站提示 (Station Prompt)
+   ========================================== */
+#station-prompt {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: none;
+  background: linear-gradient(135deg, rgba(21, 101, 192, 0.95), rgba(13, 71, 161, 0.98));
+  border: 2px solid #64b5f6;
+  padding: 12px 28px;
+  border-radius: 14px;
+  text-align: center;
+  font-size: 18px;
+  color: #fff;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
+  animation: float-prompt 2s ease-in-out infinite alternate;
+}
+
+@keyframes float-prompt {
+  from { transform: translate(-50%, 0); }
+  to { transform: translate(-50%, -6px); }
+}
+
+/* ==========================================
+   底部駕駛座儀表板 (Cockpit Cluster)
+   ========================================== */
+#bottom-hud {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 10;
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.cluster-card {
+  background: rgba(15, 18, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(14px);
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* 數位時速表 (Digital Speedometer) */
+.speed-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 110px;
+}
+
+.speed-val {
+  font-family: 'Chakra Petch', monospace;
+  font-size: 48px;
+  font-weight: 700;
+  color: #00e676;
+  text-shadow: 0 0 15px rgba(0, 230, 118, 0.5);
+  line-height: 1;
+}
+
+.speed-unit {
+  font-size: 12px;
+  color: #78909c;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+/* 車門與操作快捷按鈕 (Controls) */
+.controls-box {
+  display: flex;
+  gap: 8px;
+}
+
+.hud-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #eceff1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.hud-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #00e676;
+  transform: translateY(-2px);
+}
+
+.hud-btn:active {
+  transform: translateY(1px);
+}
+
+.hud-btn.primary {
+  background: rgba(0, 230, 118, 0.15);
+  border-color: #00e676;
+  color: #00e676;
+}
+
+.hud-btn.danger {
+  background: rgba(255, 23, 68, 0.15);
+  border-color: #ff1744;
+  color: #ff5252;
+}
+
+.hud-btn kbd {
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #aaa;
+}
+
+/* ==========================================
+   右下角操作指南 (Controls Guide)
+   ========================================== */
+#controls-guide {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10;
+  background: rgba(15, 18, 24, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-size: 12px;
+  color: #b0bec5;
+  line-height: 1.8;
+  backdrop-filter: blur(10px);
+}
+
+#controls-guide strong {
+  color: #fff;
+  font-size: 13px;
+}
+
+#controls-guide kbd {
+  background: #263238;
+  color: #eceff1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  border: 1px solid #455a64;
+}
+
+/* ==========================================
+   行動裝置虛擬按鈕 (Mobile Touch Controls)
+   ========================================== */
+#mobile-controls {
+  display: none;
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 20;
+  gap: 12px;
+}
+
+.touch-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+.touch-btn:active {
+  background: #00e676;
+}
+
+@media (max-width: 768px) {
+  #controls-guide {
+    display: none;
+  }
+  #mobile-controls {
+    display: flex;
+  }
+}
+
+/* ==========================================
+   動態 Toast 提示 (Card tap notice, announcements)
+   ========================================== */
+#toast-notice {
+  position: absolute;
+  top: 150px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  z-index: 30;
+  background: rgba(15, 20, 28, 0.94);
+  border: 1px solid #00e676;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 15px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+#toast-notice.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
