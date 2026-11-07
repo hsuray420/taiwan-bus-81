@@ -1,11 +1,11 @@
 /**
- * Taiwan Bus 81 - High-Fidelity 1:1 DAEWOO BS120CN Low-Floor City Bus (Three.js)
+ * Taiwan Bus 81 - KINGLONG KL6112U1 11.2m short-wheelbase Euro IV city bus (Three.js)
  * High-definition modeling with authentic Taiwan Left-Hand Drive (LHD - 左駕) setup:
  * - Driver Station on the LEFT (左側駕駛座):
- *   * Authentic 45° angled 2-spoke steering wheel with Daewoo emblem
+ *   * Authentic 45° angled 2-spoke steering wheel with King Long emblem
  *   * Detailed slanted instrument cluster with glowing speedo, tachometer & dual air pressure gauges
  *   * Yellow mushroom parking air brake valve ("黃色大香菇氣壓手煞車")
- *   * Push-button gear selector (R-N-D) & illuminated door switches
+ *   * Manual gear lever, three pedals & illuminated driver switch panel
  *   * Stainless steel coin fare box (不鏽鋼投幣箱)
  *   * 寶錄電子 (Baolu) IC Card Reader facing passenger entrance
  * - Passenger Boarding on the RIGHT (右側開門):
@@ -23,17 +23,18 @@
  */
 
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { KL6112U1_SPEC } from './vehicle-spec.mjs';
 
-export class DaewooBus {
+export class KinglongBus {
   constructor(scene) {
     this.scene = scene;
     this.group = new THREE.Group();
 
     // 1:1 Scale Dimensions (Meters)
-    this.length = 12.0;
-    this.width = 2.5;
-    this.height = 3.2;
-    this.wheelbase = 6.0;
+    this.length = KL6112U1_SPEC.lengthM;
+    this.width = KL6112U1_SPEC.widthM;
+    this.height = KL6112U1_SPEC.heightM;
+    this.wheelbase = KL6112U1_SPEC.wheelbaseM;
 
     // States
     this.frontDoorOpen = false;
@@ -91,11 +92,17 @@ export class DaewooBus {
       roughness: 0.85
     });
 
-    // 5. 大宇鍍鉻金屬件 (Chrome Grille & Emblems)
+    // 5. 金龍鍍鉻金屬件 (Chrome Grille & Emblems)
     this.matChrome = new THREE.MeshStandardMaterial({
       color: 0xf0f0f0,
       metalness: 0.95,
       roughness: 0.08
+    });
+
+    this.matWood = new THREE.MeshStandardMaterial({
+      color: 0x6d3f22,
+      roughness: 0.3,
+      metalness: 0.05
     });
 
     // 6. 晶透前擋風玻璃 (Crystal Clear Laminated Windshield)
@@ -191,6 +198,16 @@ export class DaewooBus {
   buildBodyStructure() {
     const halfL = this.length / 2;
     const halfW = this.width / 2;
+
+    // 完整上車身殼體：讓車窗、門框與車頭不再漂浮在空氣中。
+    const bodyShell = new THREE.Mesh(
+      new THREE.BoxGeometry(this.width, 2.25, this.length - 0.24),
+      this.matUbusGreen
+    );
+    bodyShell.position.set(0, 1.68, 0);
+    bodyShell.castShadow = true;
+    bodyShell.receiveShadow = true;
+    this.group.add(bodyShell);
 
     // A. 低地板底盤總成 (Chassis Floor)
     const floorGeo = new THREE.BoxGeometry(this.width, 0.22, this.length);
@@ -331,7 +348,7 @@ export class DaewooBus {
         new THREE.BoxGeometry(0.14, winHeight, 0.12),
         this.matGlossBlack
       );
-      pillar.position.set(-halfW + 0.06, winY, z);
+      pillar.position.set(-halfW - 0.06, winY, z);
       this.group.add(pillar);
     }
 
@@ -341,7 +358,7 @@ export class DaewooBus {
       this.matSideGlass
     );
     leftWin.rotation.y = -Math.PI / 2;
-    leftWin.position.set(-halfW + 0.02, winY, 0);
+    leftWin.position.set(-halfW - 0.03, winY, 0);
     this.group.add(leftWin);
 
     // 右側乘客側車窗 (分段避開前後門)
@@ -350,7 +367,7 @@ export class DaewooBus {
       this.matSideGlass
     );
     rightWinFront.rotation.y = Math.PI / 2;
-    rightWinFront.position.set(halfW - 0.02, winY, 2.4);
+    rightWinFront.position.set(halfW + 0.03, winY, 2.4);
     this.group.add(rightWinFront);
 
     const rightWinRear = new THREE.Mesh(
@@ -358,7 +375,7 @@ export class DaewooBus {
       this.matSideGlass
     );
     rightWinRear.rotation.y = Math.PI / 2;
-    rightWinRear.position.set(halfW - 0.02, winY, -3.6);
+    rightWinRear.position.set(halfW + 0.03, winY, -3.6);
     this.group.add(rightWinRear);
   }
 
@@ -394,7 +411,7 @@ export class DaewooBus {
   }
 
   // ==========================================
-  // 5. 大宇車頭、鍍鉻水箱罩與 LED 看板 (Front Face)
+  // 5. 金龍車頭、鍍鉻水箱罩與 LED 看板 (Front Face)
   // ==========================================
   buildFrontFace() {
     const halfL = this.length / 2;
@@ -410,7 +427,7 @@ export class DaewooBus {
     // 台灣綠底白字車牌 (Taiwan Bus License Plate: 812-U9)
     this.buildLicensePlate(0, 0.38, halfL + 0.28, false);
 
-    // 大宇經典橫柵鍍鉻水箱罩 (Daewoo 3-slat Chrome Grille)
+    // KL6112U1 車頭橫柵與金龍廠徽
     for (let i = 0; i < 3; i++) {
       const bar = new THREE.Mesh(
         new THREE.BoxGeometry(1.3, 0.045, 0.07),
@@ -420,7 +437,7 @@ export class DaewooBus {
       this.group.add(bar);
     }
 
-    // 大宇立體廠徽 (Daewoo Chrome Emblem)
+    // 金龍立體廠徽 (Kinglong Chrome Emblem)
     const emblem = new THREE.Mesh(
       new THREE.CylinderGeometry(0.11, 0.11, 0.04, 24),
       this.matChrome
@@ -453,7 +470,7 @@ export class DaewooBus {
       this.group.add(wiperArm);
     }
 
-    // 車頭頂部發光 LED 路線看板 (81 經 公益路 臺中車站)
+    // 車頭頂部發光 LED 路線看板
     this.buildFrontLed();
   }
 
@@ -471,7 +488,7 @@ export class DaewooBus {
     ledScreen.position.set(0, 2.9, this.length / 2 + 0.08);
     this.group.add(ledScreen);
 
-    this.updateLedDisplay('81 經 公益路 臺中車站');
+    this.updateLedDisplay('81 統聯轉運站 太原六號橋');
   }
 
   updateLedDisplay(text) {
@@ -677,7 +694,7 @@ export class DaewooBus {
     seatGroup.position.set(driverX, 0, 4.3);
     this.group.add(seatGroup);
 
-    // B. 大宇弧形駕駛座儀表台 (Slanted Instrument Console)
+    // B. 金龍弧形駕駛座儀表台 (Slanted Instrument Console)
     const dash = new THREE.Mesh(
       new THREE.BoxGeometry(0.9, 0.68, 0.75),
       this.matMatteBlack
@@ -687,6 +704,10 @@ export class DaewooBus {
 
     // 儀表板雙圓表盤 (時速表與轉速表貼圖)
     this.buildInstrumentCluster(driverX, 1.05, 4.95);
+    this.buildAirPressureGauges(driverX, 1.05, 4.62);
+    this.buildManualGearConsole(driverX - 0.22, 0.95, 4.18);
+    this.buildDriverSwitchPanel(driverX + 0.48, 1.08, 4.78);
+    this.buildDriverPedals(driverX, 0.52, 4.98);
 
     // C. 大客車 45 度傾斜方向盤 (Steering Wheel)
     this.steeringWheel = new THREE.Group();
@@ -694,11 +715,11 @@ export class DaewooBus {
     // 外圈
     const wheelRim = new THREE.Mesh(
       new THREE.TorusGeometry(0.25, 0.024, 12, 32),
-      this.matGlossBlack
+      this.matWood
     );
     this.steeringWheel.add(wheelRim);
 
-    // 雙輻條與中心大宇喇叭蓋
+    // 雙輻條與中心金龍喇叭蓋
     const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.04, 0.02), this.matGlossBlack);
     this.steeringWheel.add(spoke);
 
@@ -752,6 +773,85 @@ export class DaewooBus {
     );
     partition.position.set(-0.35, 1.35, 4.1);
     this.group.add(partition);
+  }
+
+  buildAirPressureGauges(x, y, z) {
+    const gaugeMaterial = new THREE.MeshStandardMaterial({
+      color: 0x263238,
+      roughness: 0.35,
+      metalness: 0.25
+    });
+    const faceMaterial = new THREE.MeshBasicMaterial({ color: 0xeceff1 });
+
+    for (const offset of [-0.17, 0.17]) {
+      const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.035, 16), gaugeMaterial);
+      housing.rotation.x = Math.PI / 2;
+      housing.position.set(x + offset, y, z);
+      this.group.add(housing);
+
+      const face = new THREE.Mesh(new THREE.CircleGeometry(0.07, 16), faceMaterial);
+      face.position.set(x + offset, y, z + 0.02);
+      face.rotation.x = -Math.PI / 2;
+      this.group.add(face);
+    }
+  }
+
+  buildManualGearConsole(x, y, z) {
+    const console = new THREE.Mesh(
+      new THREE.BoxGeometry(0.28, 0.12, 0.34),
+      this.matMatteBlack
+    );
+    console.position.set(x, y, z);
+    this.group.add(console);
+
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.018, 0.018, 0.22, 8),
+      this.matChrome
+    );
+    shaft.position.set(x, y + 0.14, z);
+    this.group.add(shaft);
+
+    const knob = new THREE.Mesh(
+      new THREE.SphereGeometry(0.055, 12, 8),
+      new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.25 })
+    );
+    knob.position.set(x, y + 0.27, z);
+    this.group.add(knob);
+  }
+
+  buildDriverSwitchPanel(x, y, z) {
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 0.16, 0.5),
+      this.matGlossBlack
+    );
+    panel.rotation.x = -Math.PI / 5;
+    panel.position.set(x, y, z);
+    this.group.add(panel);
+
+    for (let index = 0; index < 4; index += 1) {
+      const button = new THREE.Mesh(
+        new THREE.BoxGeometry(0.045, 0.025, 0.06),
+        new THREE.MeshStandardMaterial({
+          color: index === 0 ? 0xffc107 : index === 1 ? 0x43a047 : 0x607d8b,
+          emissive: index === 0 ? 0x4a2500 : 0x000000
+        })
+      );
+      button.position.set(x - 0.1 + (index % 2) * 0.2, y + 0.08, z - 0.14 + Math.floor(index / 2) * 0.28);
+      this.group.add(button);
+    }
+  }
+
+  buildDriverPedals(x, y, z) {
+    const pedalMaterial = new THREE.MeshStandardMaterial({ color: 0x30343a, roughness: 0.7 });
+    for (let index = -1; index <= 1; index += 1) {
+      const pedal = new THREE.Mesh(
+        new THREE.BoxGeometry(0.09, 0.2, 0.035),
+        pedalMaterial
+      );
+      pedal.rotation.x = -Math.PI / 8;
+      pedal.position.set(x + index * 0.14, y, z);
+      this.group.add(pedal);
+    }
   }
 
   // 繪製擬真儀表板表盤 (Speedometer & Gauges)

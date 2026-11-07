@@ -28,6 +28,9 @@ export class BusAudioEngine {
     // Turn signal
     this.turnSignalTimer = null;
     this.turnSignalActive = false;
+    this.turnWarningTimer = null;
+    this.turnWarningActive = false;
+    this.turnWarningDirection = null;
 
     // Speech
     this.isSpeaking = false;
@@ -213,6 +216,58 @@ export class BusAudioEngine {
 
     osc.start(now);
     osc.stop(now + 0.04);
+  }
+
+  // 大型車轉彎警示蜂鳴器。這是未取得 81 路原始錄音前的仿真 fallback；
+  // 收到可授權實錄後，可在同一個事件入口替換成音檔播放。
+  setTurnWarning(active, direction = null) {
+    if (this.turnWarningActive === active && this.turnWarningDirection === direction) return;
+
+    if (this.turnWarningTimer) {
+      clearInterval(this.turnWarningTimer);
+      this.turnWarningTimer = null;
+    }
+
+    this.turnWarningActive = active;
+    this.turnWarningDirection = direction;
+
+    if (active) {
+      this.playTurnWarning(direction);
+      this.turnWarningTimer = setInterval(() => {
+        this.playTurnWarning(this.turnWarningDirection);
+      }, 720);
+    }
+  }
+
+  playTurnWarning(direction = null) {
+    this.ensureContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const frequencies = [1046.5, 1046.5, 1046.5];
+    frequencies.forEach((frequency, index) => {
+      const start = now + index * 0.13;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const pan = this.ctx.createStereoPanner?.();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(0.12, start + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.09);
+
+      osc.connect(gain);
+      if (pan) {
+        pan.pan.setValueAtTime(direction === 'left' ? -0.18 : direction === 'right' ? 0.18 : 0, start);
+        gain.connect(pan);
+        pan.connect(this.ctx.destination);
+      } else {
+        gain.connect(this.ctx.destination);
+      }
+      osc.start(start);
+      osc.stop(start + 0.1);
+    });
   }
 
   // ==========================================

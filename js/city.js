@@ -6,48 +6,53 @@
  * 3. 台灣小綠人行人紅綠燈 (Taiwan Animated Pedestrian Signals)
  * 4. 台中市獨立智慧型公車站牌 (Taichung Smart Bus Stops with real-time LED)
  * 5. 台灣特色騎樓建築、霓虹招牌 (7-ELEVEN, 全家, 珍奶店, 太陽餅)
- * 6. 5大真實站點停靠判定與打卡系統
+ * 6. 81 路固定站序的全站停靠判定；一般站使用低負載站牌，大站使用候車亭
  */
 
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { classifyStop } from './route-stop.mjs';
 
-export const STATIONS = [
-  {
-    id: 0,
-    name: '統聯轉運站',
-    enName: 'Ubus Transfer Station',
-    posZ: 40,
-    info: '起點站 - 統聯客運台中轉運核心樞紐'
-  },
-  {
-    id: 1,
-    name: '惠文高中 (公益路)',
-    enName: 'Hui-Wen High School',
-    posZ: -180,
-    info: '公益路學區站點，學生乘車主力'
-  },
-  {
-    id: 2,
-    name: '草悟道 (市民廣場)',
-    enName: 'Calligraphy Greenway',
-    posZ: -420,
-    info: '台中綠意心臟、勤美誠品商圈'
-  },
-  {
-    id: 3,
-    name: '臺中一中 (雙十路)',
-    enName: 'Taichung First Senior High School',
-    posZ: -680,
-    info: '一中街商圈、臺中體育場站點'
-  },
-  {
-    id: 4,
-    name: '臺中車站 (臺灣大道)',
-    enName: 'Taichung Railway Station',
-    posZ: -950,
-    info: '終點精華站點 - 台中百年新舊火車站匯流'
-  }
+const ROUTE_STOP_NAMES = [
+  '統聯轉運站(站內)', '福安里(臺灣大道)', '朝馬2(臺灣大道)', '黎明環河路口',
+  '西屯區公所', '黎明龍門路口', '黎明市政路口', '黎明國小', '黎明新村(黎明路)',
+  '黎明大業路口', '惠文國小', '惠文高中(公益路)', '臺中特殊教育學校',
+  '公益文心路口', '公益大墩路口', '公益東興路口', '公益精誠路口',
+  '公益公園(公益路)', '公益中美街口', '草悟道(市民廣場)', '公益臺灣大道口',
+  '茄苳腳(專用道)', '中央市場', '五權公園路口(光大社區)', '光大里', '五常里',
+  '五權學士路口', '莒光新城', '臺灣體大體育場', '臺中一中', '臺灣體大游泳池',
+  '臺中公園(雙十路)', '干城站', '臺中車站(C月台)', '復興公園東路口',
+  '自由富台東街口', '自由進德路口', '中國醫東區分院', '進德國小', '精武進化路口',
+  '精武車站(精武路)', '新福里(中山路)', '新福里(新福路)', '新光里(新福路)',
+  '新福振武路口', '新光國小', '新光國中', '新興樹德路口', '育賢立功路口',
+  '育賢建和路口', '樹孝太順路口', '太順育德路口', '太原六號橋(太原路)'
 ];
+
+const ROUTE_START_Z = 40;
+const ROUTE_END_Z = -950;
+
+const ROUTE_SEGMENTS = [
+  { from: 0, to: 2, road: '臺灣大道', district: '西屯區' },
+  { from: 3, to: 11, road: '黎明路', district: '南屯區' },
+  { from: 12, to: 20, road: '公益路', district: '西區' },
+  { from: 21, to: 28, road: '五權路', district: '北區' },
+  { from: 29, to: 33, road: '雙十路／臺灣大道', district: '中區' },
+  { from: 34, to: 39, road: '復興路／進化路', district: '東區' },
+  { from: 40, to: 47, road: '中山路／新福路', district: '太平區' },
+  { from: 48, to: 52, road: '育賢路／太原路', district: '太平區' }
+];
+
+export const STATIONS = ROUTE_STOP_NAMES.map((name, id) => ({
+  ...classifyStop(name),
+  id,
+  name,
+  enName: name,
+  posZ: ROUTE_START_Z + (ROUTE_END_Z - ROUTE_START_Z) * (id / (ROUTE_STOP_NAMES.length - 1)),
+  info: id === 0
+    ? '起點站 - 統聯轉運站(站內)'
+    : id === ROUTE_STOP_NAMES.length - 1
+      ? '終點站 - 太原六號橋(太原路)'
+      : `第 ${id + 1} 站 - 81 路固定站序`
+}));
 
 export class TaichungCity {
   constructor(scene) {
@@ -71,6 +76,7 @@ export class TaichungCity {
     this.buildBusStations();
     this.buildArcadeBuildings();
     this.buildStreetFurniture();
+    this.buildRouteIdentitySigns();
   }
 
   createMaterials() {
@@ -230,12 +236,36 @@ export class TaichungCity {
   }
 
   // ==========================================
-  // 台中 81路 5 大停靠公車站 (Bus Stops & Shelters)
+  // 台中 81路固定站序：一般站牌低負載化，大站保留候車亭
   // ==========================================
   buildBusStations() {
     for (const station of STATIONS) {
-      this.buildSingleStation(station);
+      if (station.type === 'ordinary') {
+        this.buildOrdinaryStopMarker(station);
+      } else {
+        this.buildSingleStation(station);
+      }
     }
+  }
+
+  buildOrdinaryStopMarker(station) {
+    const x = this.roadWidth / 2 + 1.2;
+    const marker = new THREE.Group();
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045, 0.045, 2.5, 8),
+      new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.55 })
+    );
+    pole.position.y = 1.25;
+    marker.add(pole);
+
+    const sign = new THREE.Mesh(
+      new THREE.BoxGeometry(0.48, 0.62, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0xffc107, roughness: 0.35 })
+    );
+    sign.position.set(0, 2.45, 0);
+    marker.add(sign);
+    marker.position.set(x, 0, station.posZ + 5.0);
+    this.group.add(marker);
   }
 
   buildSingleStation(station) {
@@ -337,6 +367,7 @@ export class TaichungCity {
 
     // 3. 玻璃候車亭 (Shelter)
     const shelter = this.buildBusShelter();
+    shelter.scale.setScalar(station.type === 'hub' ? 1.25 : station.type === 'major' ? 1.1 : 1);
     shelter.position.set(x + 1.2, 0, z);
     shelter.rotation.y = -Math.PI / 2;
     this.group.add(shelter);
@@ -485,6 +516,33 @@ export class TaichungCity {
       // 行道樹 (台灣常見的小葉欖仁/欒樹)
       this.buildTree(this.roadWidth / 2 + 4.5, z + 15);
       this.buildTree(-this.roadWidth / 2 - 4.5, z + 15);
+    }
+  }
+
+  buildRouteIdentitySigns() {
+    for (const segment of ROUTE_SEGMENTS) {
+      const station = STATIONS[Math.floor((segment.from + segment.to) / 2)];
+      if (!station) continue;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#0c3d5a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 32px "Noto Sans TC", sans-serif';
+      ctx.fillText(segment.road, 22, 48);
+      ctx.font = '24px "Noto Sans TC", sans-serif';
+      ctx.fillText(`81路｜${segment.district}`, 22, 92);
+
+      const sign = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.4, 0.6),
+        new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas) })
+      );
+      sign.position.set(-this.roadWidth / 2 - 0.4, 4.2, station.posZ);
+      sign.rotation.y = Math.PI / 2;
+      this.group.add(sign);
     }
   }
 

@@ -5,19 +5,21 @@
  * - Space / P: Pneumatic Parking Brake (氣壓手煞車拔起/釋放 嘶——喀！)
  * - 1: Toggle Front Door (前折疊門)
  * - 2: Toggle Middle Door (中外滑門)
- * - B: Tap IC Card (悠遊卡/一卡通 嗶嗶聲)
- * - L: Press Stop Bell (經典下車鈴 叮咚)
- * - C: Cycle Camera View (駕駛座 / 車外第三人稱 / 客艙視角)
+ * - C: Cycle Camera View (左駕駕駛座 / 車外第三人稱)
  * - Q / X: Left / Right Turn Signals (清脆方向燈繼電器)
  * - H: Dual Heavy Horn (大巴喇叭)
- * - N: Announce Next Station (3音水晶前奏鈴聲 + 台中81路到站廣播)
- * - M: Test Prelude Chime (公車/捷運水晶提示音)
  */
 
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import { DaewooBus } from './bus.js';
+import { KinglongBus } from './bus.js';
 import { TaichungCity, STATIONS } from './city.js';
 import { BusAudioEngine } from './audio.js';
+import {
+  applyPassengerEvent,
+  createPassengerEventPlan,
+  shouldAutoOpenFrontDoor,
+  shouldPlayTurnWarning
+} from './passenger-events.mjs';
 
 export class Game {
   constructor() {
@@ -54,10 +56,10 @@ export class Game {
 
     // Spawn City and Bus
     this.city = new TaichungCity(this.scene);
-    this.bus = new DaewooBus(this.scene);
+    this.bus = new KinglongBus(this.scene);
 
     // Initial bus transform (Starting near 統聯轉運站)
-    this.busPos = new THREE.Vector3(4.5, 0, 50); // 右側靠外車道 (靠右行駛)
+    this.busPos = new THREE.Vector3(4.5, 0, 50); // 右側通行車道；車內駕駛座在左側
     this.busHeading = Math.PI; // 朝向 -Z 行駛 (往台中車站方向)
     this.busSpeed = 0; // m/s
     this.steerAngle = 0; // rad
@@ -75,7 +77,7 @@ export class Game {
     this.currentStationIndex = 0;
     this.stationStopped = false;
     this.passengerCount = 14;
-    this.cameraMode = 1; // 預設 1: 車外追蹤視角, 0: 駕駛座第一人稱, 2: 客艙視角
+    this.cameraMode = 0; // 預設左駕駕駛座；只保留駕駛與車外視角
     this.cameraDistance = 15.0;
     this.cameraHeight = 4.2;
 
@@ -83,6 +85,8 @@ export class Game {
     this.isParkingBrakeEngaged = false;
     this.leftTurnActive = false;
     this.rightTurnActive = false;
+    this.stationEventsScheduled = new Set();
+    this.passengerEventTimers = new Set();
 
     // Keys
     this.keys = {};
@@ -133,12 +137,8 @@ export class Game {
       // Single action hotkeys
       if (k === '1') this.toggleFrontDoor();
       if (k === '2') this.toggleMiddleDoor();
-      if (k === 'b') this.triggerCardTap();
-      if (k === 'l') this.triggerStopBell();
       if (k === 'c') this.cycleCamera();
       if (k === 'h') this.audio.playHorn();
-      if (k === 'n') this.announceNextStation();
-      if (k === 'm') this.testPreludeChime();
       if (k === 'p' || e.code === 'Space') this.toggleParkingBrake();
       if (k === 'q') this.toggleTurnSignal('left');
       if (k === 'x' || k === 'e') this.toggleTurnSignal('right');
@@ -179,10 +179,7 @@ export class Game {
 
     document.getElementById('btn-door-front')?.addEventListener('click', () => this.toggleFrontDoor());
     document.getElementById('btn-door-mid')?.addEventListener('click', () => this.toggleMiddleDoor());
-    document.getElementById('btn-card-tap')?.addEventListener('click', () => this.triggerCardTap());
-    document.getElementById('btn-stop-bell')?.addEventListener('click', () => this.triggerStopBell());
     document.getElementById('btn-cam-switch')?.addEventListener('click', () => this.cycleCamera());
-    document.getElementById('btn-announce')?.addEventListener('click', () => this.announceNextStation());
     document.getElementById('btn-handbrake')?.addEventListener('click', () => this.toggleParkingBrake());
   }
 
@@ -222,12 +219,14 @@ export class Game {
     const isOpen = this.bus.toggleFrontDoor();
     this.audio.playDoorPneumatic(isOpen);
     this.updateDoorUI();
+    this.tryStartPassengerExchange();
   }
 
   toggleMiddleDoor() {
     const isOpen = this.bus.toggleMiddleDoor();
     this.audio.playDoorPneumatic(isOpen);
     this.updateDoorUI();
+    this.tryStartPassengerExchange();
   }
 
   triggerCardTap() {
@@ -236,7 +235,7 @@ export class Game {
     this.audio.playCardTap(cardType);
 
     this.bus.updateCardReaderScreen('扣款成功 0元', '台中市民10km免費', true);
-    this.showFloatingNotice(`乘客持【${isStudent ? '學生票' : '普通卡'}】刷卡逼逼成功 (0元)`);
+    this.showFloatingNotice(`乘客持【${isStudent ? '學生票' : '普通卡'}】自動刷卡 (0元)`);
 
     setTimeout(() => {
       this.bus.updateCardReaderScreen('歡迎搭乘 81', '上下車請刷卡');
@@ -251,7 +250,7 @@ export class Game {
     if (alertEl) {
       alertEl.classList.add('active');
     }
-    this.showFloatingNotice('叮咚！乘客按下下車鈴');
+    this.showFloatingNotice('叮咚！乘客自動按下車鈴');
   }
 
   resetStopBell() {
@@ -263,15 +262,15 @@ export class Game {
   }
 
   cycleCamera() {
-    this.cameraMode = (this.cameraMode + 1) % 3;
-    const names = ['台灣標準左駕駕駛室視角', '車外第三人稱追蹤視角', '客艙乘客視角'];
+    this.cameraMode = (this.cameraMode + 1) % 2;
+    const names = ['台灣標準左駕駛室視角', '車外第三人稱追蹤視角'];
     this.showFloatingNotice(`已切換至：${names[this.cameraMode]}`);
   }
 
   announceNextStation() {
-    const nextIdx = Math.min(this.currentStationIndex + 1, STATIONS.length - 1);
-    const nextSt = STATIONS[nextIdx];
-    this.audio.announceStation(STATIONS[this.currentStationIndex].name, nextSt.name);
+    const nextSt = STATIONS[this.currentStationIndex];
+    if (!nextSt) return;
+    this.audio.announceStation(STATIONS[this.currentStationIndex - 1]?.name, nextSt.name);
     this.bus.updateInteriorLed(`下一站：${nextSt.name}`);
     this.showFloatingNotice(`📢 廣播下一站：${nextSt.name}`);
   }
@@ -337,6 +336,10 @@ export class Game {
     this.busPos.x += Math.sin(this.busHeading) * this.busSpeed * delta;
     this.busPos.z += Math.cos(this.busHeading) * this.busSpeed * delta;
 
+    // 固定路線站停輔助：接近站牌時由車輛自動柔煞，避免玩家高速穿站。
+    // 最終仍需由玩家控制方向、煞車與開門，這不是自動駕駛。
+    this.applyStationStopAssist(delta);
+
     // 道路邊界限制
     this.busPos.x = Math.max(-this.city.roadWidth / 2 + 1.3, Math.min(this.city.roadWidth / 2 - 1.3, this.busPos.x));
 
@@ -353,6 +356,12 @@ export class Game {
     // 更新車輪與車門動畫
     const isBraking = (backward && this.busSpeed > 0.2) || this.isParkingBrakeEngaged;
     this.bus.update(delta, this.busSpeed, this.steerAngle, isBraking);
+
+    const steeringDirection = left ? 'left' : right ? 'right' : null;
+    this.audio.setTurnWarning(
+      shouldPlayTurnWarning({ speed: this.busSpeed, steerAngle: this.steerAngle }),
+      steeringDirection
+    );
 
     // 引擎聲浪動態更新
     const speedKmh = Math.abs(this.busSpeed * 3.6);
@@ -373,15 +382,18 @@ export class Game {
     if (distToStation < 16.0) {
       if (stationPrompt) {
         stationPrompt.style.display = 'block';
-        stationPrompt.innerHTML = `🚏 即將抵達：<strong>${currentSt.name}</strong><br><small>請減速靠右停妥，按 1 或 2 開啟車門供乘客上下車</small>`;
+        const stopLabel = currentSt.type === 'hub' ? '大站' : currentSt.type === 'major' ? '主要站' : '一般站';
+        stationPrompt.innerHTML = `🚏 即將抵達：<strong>${currentSt.name}</strong> <small>（${stopLabel}）</small><br><small>請減速靠右停妥，車門與乘客上下車流程會自動執行</small>`;
       }
 
-      if (Math.abs(this.busSpeed) < 0.3 && (this.bus.frontDoorOpen || this.bus.middleDoorOpen)) {
+      if (Math.abs(this.busSpeed) < 0.3) {
         if (!this.stationStopped) {
           this.stationStopped = true;
           this.onStationArrival(currentSt);
         }
       }
+    } else if (distToStation < 34.0 && this.currentStationIndex > 0) {
+      this.schedulePassengerStopBell(currentSt);
     } else {
       if (stationPrompt && distToStation > 25.0) {
         stationPrompt.style.display = 'none';
@@ -391,6 +403,7 @@ export class Game {
         this.resetStopBell();
         if (this.currentStationIndex < STATIONS.length - 1) {
           this.currentStationIndex++;
+          this.stationEventsScheduled.delete(currentSt.id);
           this.updateStationHUD();
           this.announceNextStation();
         }
@@ -398,18 +411,74 @@ export class Game {
     }
   }
 
+  applyStationStopAssist(delta) {
+    const station = STATIONS[this.currentStationIndex];
+    if (!station || this.stationStopped || this.busSpeed <= 0) return;
+
+    const distance = Math.abs(this.busPos.z - station.posZ);
+    if (distance > 12) return;
+
+    const assistBraking = this.braking * 1.8;
+    this.busSpeed = Math.max(0, this.busSpeed - assistBraking * delta);
+    if (distance < 1.2 && this.busSpeed < 2.2) this.busSpeed = 0;
+  }
+
   onStationArrival(station) {
-    this.showFloatingNotice(`✅ 已停妥【${station.name}】！乘客上下車中...`);
+    this.showFloatingNotice(`✅ 已停妥【${station.name}】（${station.type === 'hub' ? '大站' : station.type === 'major' ? '主要站' : '一般站'}）`);
     this.resetStopBell();
 
-    const boardCount = Math.floor(Math.random() * 3) + 1;
-    for (let i = 0; i < boardCount; i++) {
-      setTimeout(() => {
-        this.triggerCardTap();
-        this.passengerCount++;
-        this.updatePassengerUI();
-      }, 650 + i * 1100);
+    if (shouldAutoOpenFrontDoor({
+      stationStopped: this.stationStopped,
+      frontDoorOpen: this.bus.frontDoorOpen
+    })) {
+      this.toggleFrontDoor();
     }
+
+    this.tryStartPassengerExchange();
+  }
+
+  tryStartPassengerExchange() {
+    const station = STATIONS[this.currentStationIndex];
+    if (!this.stationStopped || !station || this.stationEventsScheduled.has(`exchange:${station.id}`)) return;
+    if (!this.bus.frontDoorOpen && !this.bus.middleDoorOpen) return;
+
+    this.stationEventsScheduled.add(`exchange:${station.id}`);
+
+    const plan = createPassengerEventPlan({
+      passengerCount: this.passengerCount,
+      stationIndex: station.id
+    });
+
+    for (const event of plan) {
+      const timer = setTimeout(() => {
+        this.passengerEventTimers.delete(timer);
+        this.passengerCount = applyPassengerEvent(this.passengerCount, event);
+        if (event.type === 'board') this.triggerCardTap();
+        this.updatePassengerUI();
+      }, event.delayMs);
+      this.passengerEventTimers.add(timer);
+    }
+
+    const lastEventDelay = plan.length > 0 ? plan[plan.length - 1].delayMs : 0;
+    const closeTimer = setTimeout(() => {
+      this.passengerEventTimers.delete(closeTimer);
+      if (this.currentStationIndex === station.id && this.bus.frontDoorOpen) {
+        this.toggleFrontDoor();
+      }
+    }, lastEventDelay + 1800);
+    this.passengerEventTimers.add(closeTimer);
+  }
+
+  schedulePassengerStopBell(station) {
+    if (this.stationEventsScheduled.has(station.id)) return;
+    this.stationEventsScheduled.add(station.id);
+    const timer = setTimeout(() => {
+      this.passengerEventTimers.delete(timer);
+      if (this.currentStationIndex === station.id && Math.abs(this.busSpeed) > 0.3) {
+        this.triggerStopBell();
+      }
+    }, 900);
+    this.passengerEventTimers.add(timer);
   }
 
   // ==========================================
@@ -439,16 +508,6 @@ export class Game {
 
       this.camera.position.copy(this.busPos).add(camOffset);
       this.camera.lookAt(this.busPos.x, this.busPos.y + 1.7, this.busPos.z);
-    } else if (this.cameraMode === 2) {
-      // 模式 2：客艙乘客視角 (坐在中央偏右座椅，看車前走道與下車鈴)
-      const passEye = new THREE.Vector3(0.65, 1.55, -0.8);
-      passEye.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.busHeading);
-
-      const passLook = new THREE.Vector3(0.0, 1.55, 10.0);
-      passLook.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.busHeading);
-
-      this.camera.position.copy(this.busPos).add(passEye);
-      this.camera.lookAt(this.busPos.clone().add(passLook));
     }
   }
 
@@ -466,7 +525,10 @@ export class Game {
     if (el && st) el.innerText = st.name;
 
     const infoEl = document.getElementById('route-info');
-    if (infoEl && st) infoEl.innerText = `${st.id + 1}/${STATIONS.length}站: ${st.info}`;
+    if (infoEl && st) {
+      const stopLabel = st.type === 'hub' ? '大站' : st.type === 'major' ? '主要站' : '一般站';
+      infoEl.innerText = `${st.id + 1}/${STATIONS.length}站 · ${stopLabel}: ${st.info}`;
+    }
   }
 
   updateDoorUI() {
